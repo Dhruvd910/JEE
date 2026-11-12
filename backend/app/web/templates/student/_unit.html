@@ -1,0 +1,10 @@
+<li id="unit-{{ u.id }}" class="flex items-center justify-between gap-3 py-2.5">
+  <span class="min-w-0 text-sm"><span class="num mr-1.5 text-xs text-dim">{{ '%02d'|format(u.number) }}</span>{{ u.title }}</span>
+  <span class="seg shrink-0" role="group" aria-label="Status of {{ u.title }}">
+    {% for s, short in [('studied', 'S'), ('revised', 'R'), ('confident', 'C')] %}
+      <button hx-post="/syllabus/{{ u.id }}" hx-vals='{"status": "{{ '' if st == s else s }}"}' hx-target="#unit-{{ u.id }}" hx-swap="outerHTML"
+              class="{{ 'on-' ~ s if st == s }}" aria-pressed="{{ 'true' if st == s else 'false' }}" title="{{ s|capitalize }}">{{ short }}</button>
+    {% endfor %}
+  </span>
+</li>
+{% if oob %}<div id="syl-summary" hx-swap-oob="true" class="mt-6 grid gap-4 md:grid-cols-3">{% include "student/_syl_summary.html" %}</div>{% endif %}

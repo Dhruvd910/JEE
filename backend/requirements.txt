@@ -1,0 +1,17 @@
+fastapi==0.162.0
+uvicorn[standard]==0.54.0
+SQLAlchemy==2.1.6
+alembic==1.20.1
+pydantic==2.14.1
+pydantic-settings==2.16.2
+PyJWT==2.15.1
+python-multipart==0.0.32
+Jinja2==3.1.6
+httpx==0.28.1
+# official papers: text, embedded images, page rendering for JEE Advanced crops
+pypdf==6.21.4
+pypdfium2==5.14.0
+pillow==13.0.0
+# dev / test; pytailwindcss builds app.css (python -m app.web.build_css)
+pytest==9.2.0
+pytailwindcss==0.4.2

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Sign in{% endblock %}
+{% block content %}
+<div class="card card-glow mx-auto mt-6 max-w-md !p-8">
+  {# Student / Admin switch, as on NEET Compass's sign-in page #}
+  <nav class="exam-switch mb-6 flex w-full" aria-label="Sign in as">
+    <a href="/login" class="on-jee flex-1 justify-center" aria-current="page">Student</a>
+    <a href="/admin/login" class="flex-1 justify-center" hx-boost="false">Admin</a>
+  </nav>
+  <p class="label">sign in</p>
+  <h1 class="h1 mt-2">Welcome back</h1>
+  {% if error %}<p class="alert mt-4" role="alert">{{ error }}</p>{% endif %}
+  <form method="post" action="/login" hx-boost="false" class="mt-6 space-y-4">
+    <input type="hidden" name="next" value="{{ next }}">
+    <label class="block"><span class="field-label">email</span>
+      <input class="field" type="email" name="email" value="{{ email }}" required autocomplete="email"></label>
+    <label class="block"><span class="field-label">password</span>
+      <input class="field" type="password" name="password" required autocomplete="current-password"></label>
+    <button class="btn-primary w-full">Sign in</button>
+  </form>
+  <p class="mt-6 text-sm text-dim">New here? <a href="/register" class="btn-ghost">Create an account</a></p>
+</div>
+{% endblock %}

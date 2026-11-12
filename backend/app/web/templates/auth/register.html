@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Create account{% endblock %}
+{% block content %}
+<div class="card card-glow mx-auto mt-6 max-w-md !p-8">
+  <p class="label">new account</p>
+  <h1 class="h1 mt-2">Create your <span class="grad-text">workbench</span></h1>
+  {% if error %}<p class="alert mt-4" role="alert">{{ error }}</p>{% endif %}
+  <form method="post" action="/register" hx-boost="false" class="mt-6 space-y-4">
+    <label class="block"><span class="field-label">name</span>
+      <input class="field" name="name" value="{{ form.name or '' }}" required maxlength="120" autocomplete="name"></label>
+    <label class="block"><span class="field-label">email</span>
+      <input class="field" type="email" name="email" value="{{ form.email or '' }}" required autocomplete="email"></label>
+    <label class="block"><span class="field-label">password (8+ characters)</span>
+      <input class="field" type="password" name="password" required minlength="8" autocomplete="new-password"></label>
+    <button class="btn-primary w-full">Create account</button>
+  </form>
+  <p class="mt-5 text-xs text-dim">We store your name, email and test answers to show your progress. Category, gender
+    and home state are optional and only used by the predictor.</p>
+</div>
+{% endblock %}

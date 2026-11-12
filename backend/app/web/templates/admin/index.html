@@ -1,0 +1,139 @@
+{% extends "admin/_shell.html" %}
+{% block title %}{{ {'overview': 'Overview', 'students': 'Students', 'questions': 'Question bank', 'data': 'Data sources'}[tab] }} · Admin{% endblock %}
+{% block console %}
+{% set STATUS = {"ok": "chip-ok", "warn": "chip-warn", "todo": "chip-bad"} %}
+
+{% if tab == "overview" %}
+  <header>
+    <p class="label">overview</p>
+    <h1 class="h1 mt-1">Hello, {{ (me.name or 'Admin').split(' ')[0] }} — <span class="acc-text">JEE Workbench</span> today</h1>
+    <p class="mt-1 text-sm text-dim">Live numbers from this site's database. Student files are confidential.</p>
+  </header>
+  <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Key numbers">
+    {% for label, value, sub, series in d.cards %}
+    <div class="card">
+      <p class="label">{{ label }}</p>
+      <p class="num mt-1 text-3xl font-bold acc-text">{{ value|num }}</p>
+      <p class="text-xs text-dim">{{ sub }}</p>
+      <svg viewBox="0 0 132 30" class="mt-2 h-8 w-full" role="img" aria-label="{{ label }} per day, last 14 days: {{ series|join(', ') }}">
+        <polyline fill="none" stroke="var(--acc-a)" stroke-width="2" stroke-linejoin="round" points="{{ spark(series) }}"/></svg>
+    </div>
+    {% endfor %}
+  </section>
+  <div class="grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+    <section class="card">
+      <div class="mb-4 flex items-center justify-between"><h2 class="h2">Latest activity</h2><a class="btn-ghost" href="/admin?tab=students">All students →</a></div>
+      <ol class="relative space-y-4 border-l border-white/10 pl-5">
+        {% for kind, at, u, text in d.feed %}
+          <li class="relative">
+            <span class="feed-dot {{ 'bg-emerald-400' if kind == 'signup' else 'acc-bar' }}"></span>
+            <p class="text-sm"><a class="font-semibold hover:underline" href="/admin/users/{{ u.id }}">{{ u.name }}</a> <span class="text-dim">{{ text }}</span></p>
+            <p class="num text-[11px] text-dim">{{ at|when }}</p>
+          </li>
+        {% else %}<li class="text-sm text-dim">No activity yet.</li>{% endfor %}
+      </ol>
+    </section>
+    <section class="card">
+      <h2 class="h2">Health checklist</h2>
+      <ul class="mt-4 space-y-2.5 text-sm">
+        {% for status, label, detail in d.checks %}
+          <li class="flex items-start gap-3"><span class="{{ STATUS[status] }} w-14 shrink-0 justify-center">{{ 'to do' if status == 'todo' else status }}</span>
+            <span><span class="font-medium">{{ label }}</span><span class="block text-xs text-dim">{{ detail }}</span></span></li>
+        {% endfor %}
+      </ul>
+    </section>
+  </div>
+
+{% elif tab == "students" %}
+  <header class="flex flex-wrap items-end justify-between gap-4">
+    <div><p class="label">students</p><h1 class="h1 mt-1">Student register</h1></div>
+    <form method="get" action="/admin" hx-get="/admin" hx-trigger="input changed delay:300ms from:input, submit" hx-target="#admin-page" hx-select="#admin-page" hx-swap="outerHTML">
+      <input type="hidden" name="tab" value="students">
+      <input class="field w-72" name="q" value="{{ d.q }}" placeholder="Search name or email" aria-label="Search students">
+    </form>
+  </header>
+  <dl class="grid grid-cols-2 gap-4 sm:grid-cols-4">
+    {% for k, v in d.totals %}<div class="stat"><dt>{{ k }}</dt><dd class="acc-text">{{ v }}</dd></div>{% endfor %}
+  </dl>
+  <section class="card overflow-x-auto !p-0">
+    <table class="data">
+      <thead><tr><th>student</th><th>joined</th><th>last sign-in</th><th class="text-right">tests</th><th>last test</th><th></th></tr></thead>
+      <tbody>
+      {% for u, n, last in d.rows %}
+        <tr>
+          <td><div class="flex items-center gap-3"><span class="acc-bar grid h-8 w-8 shrink-0 place-items-center rounded-full text-sm font-bold text-slate-950">{{ u.name[:1]|upper }}</span>
+            <div><a href="/admin/users/{{ u.id }}" class="font-semibold hover:underline">{{ u.name }}</a>{% if u.role.value == 'admin' %} <span class="chip-vio">admin</span>{% endif %}
+              <p class="break-all text-xs text-dim">{{ u.email }}</p></div></div></td>
+          <td class="num text-xs text-dim">{{ u.created_at|when }}</td>
+          <td class="num text-xs text-dim">{{ u.last_login_at|when }}</td>
+          <td class="num text-right">{{ n }}</td>
+          <td class="num text-xs text-dim">{{ last|when if last else '—' }}</td>
+          <td><a class="btn !px-3 !py-1.5 text-xs" href="/admin/users/{{ u.id }}">Open file</a></td>
+        </tr>
+      {% else %}<tr><td colspan="6" class="text-dim">{{ 'No students match that search.' if d.q else 'No students yet.' }}</td></tr>{% endfor %}
+      </tbody>
+    </table>
+    <p class="border-t border-white/5 px-4 py-3 text-xs text-dim">Newest 300 shown. Times are UTC.</p>
+  </section>
+
+{% elif tab == "questions" %}
+  <header><p class="label">question bank</p><h1 class="h1 mt-1">Official papers & mock bank</h1></header>
+  {% set c = d.counts %}
+  <dl class="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-5">
+    <div class="stat"><dt>previous-year served</dt><dd class="acc-text">{{ c[('main','pyq','served')] + c[('advanced','pyq','served')] }}</dd></div>
+    <div class="stat"><dt>no usable key</dt><dd>{{ c[('main','pyq','dropped')] + c[('advanced','pyq','dropped')] }}</dd></div>
+    <div class="stat"><dt>hidden by admin</dt><dd>{{ c[('main','pyq','hidden')] + c[('advanced','pyq','hidden')] }}</dd></div>
+    <div class="stat"><dt>transcripts agreed</dt><dd>{{ d.transcripts.get(true, 0) }}<span class="text-sm text-dim">/{{ d.transcripts.get(true, 0) + d.transcripts.get(false, 0) }}</span></dd></div>
+    <div class="stat"><dt>mock versions</dt><dd class="acc-text">{{ c[('main','variant','served')] + c[('advanced','variant','served')] }}</dd></div>
+  </dl>
+  <div class="grid gap-6 xl:grid-cols-2">
+    {% for exam_key, spec in d.mocks.items() %}
+    <section class="card">
+      <div class="flex items-center justify-between"><h2 class="h2">{{ spec.title }} bank</h2>
+        {{ '<span class="chip-ok">enough for a mock</span>'|safe if not d.short[exam_key] else '<span class="chip-warn">filling</span>'|safe }}</div>
+      <table class="data mt-3"><thead><tr><th>subject</th>{% for qt, n, f, ng in spec.sections %}<th class="text-right">{{ qt }} <span class="normal-case">/ {{ n }}</span></th>{% endfor %}</tr></thead>
+        <tbody>{% for s in ['Physics', 'Chemistry', 'Mathematics'] %}<tr><td>{{ s }}</td>
+          {% for qt, n, f, ng in spec.sections %}{% set have = d.have.get((exam_key, s, qt), 0) %}
+            <td class="num text-right {{ 'text-emerald-300' if have >= n else 'text-amber-300' }}">{{ have }}</td>{% endfor %}</tr>{% endfor %}</tbody></table>
+      <p class="mt-2 text-xs text-dim">Checked versions in the bank (needed per mock in the header). Fill with <code class="font-mono">python -m app.maintenance fill-mocks --exam {{ exam_key }}</code>.</p>
+    </section>
+    {% endfor %}
+  </div>
+  <section class="card overflow-x-auto !p-0">
+    <div class="px-5 pt-5"><h2 class="h2">Official papers</h2><p class="text-xs text-dim">Open a paper to check each question against the official key, and hide any that is cut off or wrong.</p></div>
+    <table class="data mt-3"><thead><tr><th>paper</th><th>exam</th><th class="text-right">served</th><th>sources</th></tr></thead><tbody>
+      {% for paper, n in d.papers %}<tr><td><a class="font-medium hover:underline" href="/admin/papers/{{ paper.id }}">{{ paper.title }}</a></td>
+        <td><span class="{{ 'chip-vio' if paper.exam == 'advanced' else 'chip' }}">{{ paper.exam }}</span></td><td class="num text-right">{{ n }}</td>
+        <td><a class="btn-ghost" href="{{ paper.source_url }}" target="_blank" rel="noopener">paper</a> · <a class="btn-ghost" href="{{ paper.key_url }}" target="_blank" rel="noopener">key</a></td></tr>{% endfor %}
+    </tbody></table>
+  </section>
+
+{% elif tab == "data" %}
+  <header><p class="label">data sources</p><h1 class="h1 mt-1">Official data loaded</h1>
+    <p class="mt-1 text-sm text-dim">Reload with <code class="font-mono">python -m app.maintenance load-data</code> (papers already loaded are left alone).</p></header>
+  <div class="grid gap-6 xl:grid-cols-2">
+    <section class="card">
+      <h2 class="h2">JoSAA opening / closing ranks</h2>
+      <table class="data mt-3"><thead><tr><th>year</th><th>round</th><th class="text-right">institutes</th><th class="text-right">rows</th></tr></thead><tbody>
+        {% for y, r, n, i in d.cut %}<tr><td class="num">{{ y }}</td><td>{{ r }} (final)</td><td class="num text-right">{{ i }}</td><td class="num text-right">{{ n|num }}</td></tr>{% endfor %}
+      </tbody></table>
+      <p class="mt-2 text-xs text-dim">Source: JoSAA archive (josaa.admissions.nic.in).</p>
+    </section>
+    <section class="card">
+      <h2 class="h2">Institutes & NIRF</h2>
+      <div class="mt-3 flex flex-wrap gap-2">{% for k, n in d.kinds %}<span class="chip">{{ k }} · {{ n }}</span>{% endfor %}</div>
+      <p class="mt-3 text-sm"><span class="num text-2xl font-bold acc-text">{{ d.nirf }}</span> <span class="text-dim">institutes matched to NIRF 2025 Engineering (top 100)</span></p>
+      <h2 class="h2 mt-6">Syllabus</h2>
+      <div class="mt-2 flex flex-wrap gap-2">{% for s, n in d.units %}<span class="chip-ok">{{ s }} · {{ n }} units</span>{% else %}<span class="chip-warn">not loaded</span>{% endfor %}</div>
+      <p class="mt-2 text-xs text-dim">Source: <a class="btn-ghost" href="{{ d.syllabus_url }}" target="_blank" rel="noopener">NTA syllabus PDF</a>.</p>
+    </section>
+  </div>
+  <section class="card overflow-x-auto !p-0">
+    <div class="px-5 pt-5"><h2 class="h2">Papers and answer keys</h2></div>
+    <table class="data mt-3"><thead><tr><th>code</th><th>title</th><th>collected</th><th>sources</th></tr></thead><tbody>
+      {% for p in d.papers %}<tr><td class="font-mono text-xs">{{ p.code }}</td><td>{{ p.title }}</td><td class="num text-xs text-dim">{{ p.collected_at|when }}</td>
+        <td><a class="btn-ghost" href="{{ p.source_url }}" target="_blank" rel="noopener">paper</a> · <a class="btn-ghost" href="{{ p.key_url }}" target="_blank" rel="noopener">key</a></td></tr>{% endfor %}
+    </tbody></table>
+  </section>
+{% endif %}
+{% endblock %}

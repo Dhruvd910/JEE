@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}{{ a.title }}{% endblock %}
+{% block content %}
+<div class="card card-glow z-20 mb-6 sm:sticky sm:top-20">
+  <div class="flex flex-wrap items-center gap-4">
+    <div>
+      <p class="label">{{ a.mode }} · {{ a.items|length }} questions · max {{ a.max_score }}</p>
+      <h1 class="text-lg font-semibold">{{ a.title }}</h1>
+    </div>
+    <div class="ml-auto flex items-center gap-4">
+      <div class="text-right"><p class="label">time left</p>
+        <span id="clock" class="num text-3xl font-bold grad-text" data-remaining="{{ remaining }}" role="timer" aria-live="off">--:--</span></div>
+      <button class="btn-primary" hx-post="/attempt/{{ a.id }}/submit" hx-confirm="Submit now? You cannot change answers afterwards.">Submit</button>
+    </div>
+  </div>
+  <details class="mt-3" open>
+    <summary class="cursor-pointer text-xs text-dim">question palette · <span class="text-emerald-300">green = answered</span></summary>
+    <nav class="mt-2 flex max-h-28 flex-wrap gap-1 overflow-y-auto" aria-label="Question palette">
+      {% for item in a.items %}<a href="#q{{ item.position }}" id="pal-{{ item.position }}" class="pal {{ 'done' if item.response }}">{{ item.position }}</a>{% endfor %}
+    </nav>
+  </details>
+</div>
+
+<div class="space-y-5">
+  {% set ns = namespace(subject='') %}
+  {% for item in a.items %}
+    {% if item.question.subject != ns.subject %}{% set ns.subject = item.question.subject %}
+      <h2 class="s-{{ ns.subject }} flex items-center gap-3 pt-4 text-lg font-semibold"><span class="h-px w-6 bg-current s-text"></span><span class="s-text">{{ ns.subject }}</span></h2>{% endif %}
+    <section id="q{{ item.position }}" class="card scroll-mt-64">
+      {% with review = false %}{% include "practice/_question.html" %}{% endwith %}
+    </section>
+  {% endfor %}
+</div>
+<div class="mt-8 flex justify-end">
+  <button class="btn-primary" hx-post="/attempt/{{ a.id }}/submit" hx-confirm="Submit now? You cannot change answers afterwards.">Submit test</button>
+</div>
+
+<script>
+  (() => {
+    const el = document.getElementById("clock");
+    const end = Date.now() + Number(el.dataset.remaining) * 1000;
+    let sent = false;
+    const tick = () => {
+      const s = Math.max(0, Math.round((end - Date.now()) / 1000));
+      const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), ss = s % 60;
+      el.textContent = (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(ss).padStart(2, "0");
+      if (s === 0 && !sent) { sent = true; htmx.ajax("POST", "/attempt/{{ a.id }}/submit", {}); }  // the server enforces the deadline too
+      else setTimeout(tick, 500);
+    };
+    tick();
+  })();
+</script>
+{% endblock %}

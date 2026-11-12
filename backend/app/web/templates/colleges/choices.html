@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}JoSAA choice list{% endblock %}
+{% block content %}
+<div class="flex flex-wrap items-end justify-between gap-4">
+  <div>
+    <p class="label">counselling</p>
+    <h1 class="h1 mt-1">Your <span class="grad-text">JoSAA choice list</span></h1>
+    <p class="mt-2 max-w-2xl text-dim">Collect programs from the predictor or any college page, put them in your order of preference, and
+      take the list into JoSAA choice filling. Order by where you'd rather study — not by chance of getting in.</p>
+  </div>
+  {% if items %}<a href="/choices.csv" class="btn" hx-boost="false">{{ icon('download') }} Download CSV</a>{% endif %}
+</div>
+
+<div class="card mt-6 overflow-x-auto !p-0">
+  <table class="data">
+    <thead><tr><th class="w-14">#</th><th>institute</th><th>program</th><th>latest closing ({{ me.category or 'OPEN' }}{{ ', female pool' if me.gender == 'female' }})</th><th class="w-40"></th></tr></thead>
+    <tbody>
+    {% for c in items %}
+      {% set cl = closing.get(c.id) %}
+      <tr>
+        <td class="num text-lg font-bold grad-text">{{ c.position }}</td>
+        <td><a class="font-medium hover:text-cyan-200" href="/colleges/{{ c.institute.id }}">{{ c.institute.name }}</a>
+          <span class="{{ {'IIT': 'chip-vio', 'NIT': 'chip', 'IIIT': 'chip-ok', 'GFTI': 'chip-warn'}[c.institute.kind] }} ml-1">{{ c.institute.kind }}</span></td>
+        <td>{{ c.program }}</td>
+        <td class="num text-sm">{% if cl %}{% for q, v in cl.by_quota.items() %}<span class="mr-2"><span class="text-dim">{{ q }}</span> {{ v|num }}</span>{% endfor %}<span class="text-xs text-dim">({{ cl.year }})</span>{% else %}<span class="text-dim">—</span>{% endif %}</td>
+        <td class="whitespace-nowrap text-right">
+          <form method="post" action="/choices/{{ c.id }}/up" class="inline"><button class="btn-ghost-sm" aria-label="Move up" {{ 'disabled' if loop.first }}>↑</button></form>
+          <form method="post" action="/choices/{{ c.id }}/down" class="inline"><button class="btn-ghost-sm" aria-label="Move down" {{ 'disabled' if loop.last }}>↓</button></form>
+          <form method="post" action="/choices/{{ c.id }}/delete" class="inline"><button class="btn-ghost-sm !text-rose-300" aria-label="Remove">remove</button></form>
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="5" class="py-10 text-center text-dim">Your list is empty. Run the <a href="/predictor" class="btn-ghost">predictor</a> and press “+ list” on any option.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+<p class="mt-2 text-[11px] text-dim">Closing ranks are from JoSAA's final round. This list is a planning aid: fill your real choices on the JoSAA portal.</p>
+{% endblock %}

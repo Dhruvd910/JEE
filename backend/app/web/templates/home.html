@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Home{% endblock %}
+{% block content %}
+<section class="grid items-center gap-10 py-6 lg:grid-cols-[1.15fr_1fr]">
+  <div>
+    <span class="chip-vio">{{ icon('zap', 'h-3 w-3') }} built for JEE Main + Advanced 2027</span>
+    <h1 class="mt-5 text-4xl font-bold leading-[1.05] tracking-tight sm:text-6xl">
+      Engineer your<br><span class="grad-text">IIT / NIT seat.</span>
+    </h1>
+    <p class="mt-6 max-w-xl text-lg text-dim">
+      Real NTA and IIT papers with official answer keys, mocks that never repeat a question, a syllabus tracker,
+      mistake notebook and analytics — plus JoSAA cutoffs, a rank predictor and a choice-list builder for counselling.
+    </p>
+    <div class="mt-8 flex flex-wrap gap-3">
+      {% if me %}<a href="/dashboard" class="btn-primary">Open dashboard {{ icon('arrow') }}</a>
+      {% else %}<a href="/register" class="btn-primary">Start practising free {{ icon('arrow') }}</a>{% endif %}
+      <a href="/predictor" class="btn">{{ icon('compass') }} Rank → college</a>
+    </div>
+    <dl class="mt-10 grid max-w-xl grid-cols-3 gap-3">
+      {% for v, l in [(stats.pyq|num, 'official questions'), (stats.institutes, 'institutes'), (stats.cutoffs|num, 'JoSAA rows')] %}
+      <div class="card !p-4"><dd class="num text-2xl font-bold grad-text">{{ v }}</dd><dt class="mt-1 text-xs text-dim">{{ l }}</dt></div>
+      {% endfor %}
+    </dl>
+  </div>
+
+  {# animated circuit / orbit illustration #}
+  <div class="relative mx-auto aspect-square w-full max-w-md" aria-hidden="true">
+    <svg viewBox="0 0 400 400" class="h-full w-full">
+      <defs>
+        <linearGradient id="g1" x1="0" x2="1"><stop offset="0" stop-color="#22d3ee"/><stop offset="1" stop-color="#a78bfa"/></linearGradient>
+        <radialGradient id="core"><stop offset="0" stop-color="#22d3ee" stop-opacity=".9"/><stop offset="1" stop-color="#22d3ee" stop-opacity="0"/></radialGradient>
+      </defs>
+      <g stroke="#94a3c4" stroke-opacity=".18" fill="none">
+        <path d="M20 80h90l30 30h80M20 320h70l40-40h120l30 30h90M380 60h-80l-30 30v60M300 380v-70l20-20h60"/>
+      </g>
+      <g stroke="url(#g1)" stroke-width="2" fill="none" stroke-dasharray="14 186" class="animate-dash">
+        <path d="M20 80h90l30 30h80M20 320h70l40-40h120l30 30h90M380 60h-80l-30 30v60M300 380v-70l20-20h60"/>
+      </g>
+      <circle cx="200" cy="200" r="70" fill="url(#core)" opacity=".35"/>
+      <g class="animate-spin-slow" style="transform-origin: 200px 200px">
+        <ellipse cx="200" cy="200" rx="130" ry="48" fill="none" stroke="#38bdf8" stroke-opacity=".6"/>
+        <circle cx="330" cy="200" r="6" fill="#38bdf8"/>
+      </g>
+      <g class="animate-spin-slow" style="transform-origin: 200px 200px; animation-duration: 20s">
+        <ellipse cx="200" cy="200" rx="130" ry="48" fill="none" stroke="#e879f9" stroke-opacity=".55" transform="rotate(60 200 200)"/>
+      </g>
+      <g class="animate-spin-slow" style="transform-origin: 200px 200px; animation-duration: 26s; animation-direction: reverse">
+        <ellipse cx="200" cy="200" rx="130" ry="48" fill="none" stroke="#34d399" stroke-opacity=".55" transform="rotate(120 200 200)"/>
+      </g>
+      <circle cx="200" cy="200" r="16" fill="url(#g1)"/>
+    </svg>
+    <div class="card animate-float absolute left-0 top-6 !p-3 text-xs"><span class="num text-lg font-bold text-sky-300">+4 / −1</span><p class="text-dim">NTA marking</p></div>
+    <div class="card animate-float absolute bottom-10 right-0 !p-3 text-xs" style="animation-delay: -3s"><span class="num text-lg font-bold text-fuchsia-300">+3 +2 +1</span><p class="text-dim">Advanced partial marks</p></div>
+  </div>
+</section>
+
+<section class="mt-16">
+  <p class="label">everything an aspirant needs</p>
+  <h2 class="mt-2 text-2xl font-bold sm:text-3xl">One workbench, <span class="grad-text">exam to admission</span></h2>
+  <div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    {% for ic, title, text, href in [
+      ('file', 'Previous-year papers', 'Official JEE Main shifts and JEE Advanced papers, timed, marked with the official keys.', '/practice'),
+      ('target', 'Mocks that never repeat', 'Main and Advanced format, built from AI-checked new versions you have never seen.', '/practice'),
+      ('zap', 'Custom drills', 'Pick a subject, exam and question type — numericals only, multi-correct only, anything.', '/drill'),
+      ('alert', 'Mistake notebook', 'Every wrong or partial answer, collected. Bookmark questions and retest them.', '/mistakes'),
+      ('book', 'Syllabus tracker', "All 54 units of NTA's official syllabus: mark studied → revised → confident.", '/syllabus'),
+      ('chart', 'Analytics', 'Score trend, accuracy by subject and question type, marks lost to negatives.', '/analytics'),
+      ('compass', 'Rank predictor', 'Your rank against three years of JoSAA closing ranks, using JoSAA quota rules.', '/predictor'),
+      ('list', 'Choice-list builder', 'Collect programs, order your JoSAA preferences, export to CSV.', '/choices')] %}
+    <a href="{{ href }}" class="card card-hover group block">
+      <span class="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-cyan-400/20 to-violet-400/20 text-cyan-200 ring-1 ring-white/10">{{ icon(ic, 'h-5 w-5') }}</span>
+      <h3 class="mt-4 font-semibold">{{ title }}</h3>
+      <p class="mt-1.5 text-sm text-dim">{{ text }}</p>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,5 @@
+<button type="button" class="btn-ghost-sm {{ 'text-amber-300' if on else '' }}" hx-post="/bookmark/{{ qid }}" hx-swap="outerHTML"
+        aria-pressed="{{ 'true' if on else 'false' }}" title="{{ 'Remove bookmark' if on else 'Bookmark to revise later' }}">
+  <svg class="h-4 w-4" viewBox="0 0 24 24" fill="{{ 'currentColor' if on else 'none' }}" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg>
+  {{ 'Bookmarked' if on else 'Bookmark' }}
+</button>

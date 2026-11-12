@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Compare colleges{% endblock %}
+{% block content %}
+<p class="label">compare</p>
+<h1 class="h1 mt-1">Side-by-side <span class="grad-text">college compare</span></h1>
+<p class="mt-2 max-w-2xl text-dim">NIRF parameters and the latest JoSAA closing ranks (OPEN, gender-neutral; All India quota for IITs/IIITs/GFTIs,
+  Other State quota for NITs) for up to three institutes.</p>
+
+<form class="card mt-6 grid gap-3 sm:grid-cols-[1fr_1fr_1fr_auto]" method="get" action="/compare">
+  {% for n in range(3) %}
+  <label><span class="field-label">institute {{ n + 1 }}</span>
+    <select class="field" name="ids"><option value="">—</option>
+      {% for oid, name, kind in options %}<option value="{{ oid }}" {{ 'selected' if ids|length > n and ids[n] == oid }}>{{ kind }} · {{ name }}</option>{% endfor %}
+    </select></label>
+  {% endfor %}
+  <div class="flex items-end"><button class="btn-primary w-full">{{ icon('scale') }} Compare</button></div>
+</form>
+
+{% if data and data.institutes %}
+{% set cols = data.institutes %}
+<div class="card mt-6 overflow-x-auto !p-0">
+  <table class="data">
+    <thead><tr><th class="w-56"></th>{% for i in cols %}<th class="!normal-case !tracking-normal"><a href="/colleges/{{ i.id }}" class="font-sans text-sm font-semibold text-ink hover:text-cyan-200">{{ i.name }}</a></th>{% endfor %}</tr></thead>
+    <tbody>
+      <tr><td class="text-dim">Type · state</td>{% for i in cols %}<td>{{ i.kind }} · {{ i.state or '—' }}</td>{% endfor %}</tr>
+      <tr><td class="text-dim">NIRF 2025 rank</td>{% set best = cols|selectattr('nirf_rank')|map(attribute='nirf_rank')|min if cols|selectattr('nirf_rank')|list else none %}
+        {% for i in cols %}<td class="num {{ 'font-bold text-emerald-300' if i.nirf_rank and i.nirf_rank == best }}">{{ '#' ~ i.nirf_rank if i.nirf_rank else '—' }}</td>{% endfor %}</tr>
+      {% for k, label in [('TLR', 'Teaching & resources'), ('RPC', 'Research'), ('GO', 'Graduation outcomes'), ('OI', 'Outreach & inclusivity'), ('PR', 'Perception')] %}
+      <tr><td class="text-dim">{{ label }}</td>{% for i in cols %}<td>{% if i.nirf_parts %}<div class="flex items-center gap-2"><div class="bar max-w-32"><span style="width: {{ i.nirf_parts[k] }}%"></span></div><span class="num text-xs">{{ i.nirf_parts[k] }}</span></div>{% else %}<span class="text-dim">—</span>{% endif %}</td>{% endfor %}</tr>
+      {% endfor %}
+      <tr><td colspan="{{ cols|length + 1 }}" class="!pt-5"><span class="label">{{ data.year }} closing rank by program (lower = harder to get)</span></td></tr>
+      {% for program, by in data.programs.items() %}
+      {% set lowest = by.values()|min %}
+      <tr><td>{{ program }}</td>{% for i in cols %}<td class="num {{ 'font-bold text-amber-300' if by.get(i.id) == lowest and by|length > 1 }}">{{ by.get(i.id)|num }}</td>{% endfor %}</tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<p class="mt-2 text-[11px] text-dim">IIT ranks are JEE Advanced ranks; others are JEE Main ranks, so compare IITs with IITs. Highlighted = most competitive.</p>
+{% endif %}
+{% endblock %}

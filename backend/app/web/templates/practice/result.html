@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Result · {{ a.title }}{% endblock %}
+{% block content %}
+<p class="label">result</p>
+<h1 class="h1 mt-1">{{ a.title }}</h1>
+
+{% set pct = (100 * a.score / a.max_score)|round|int if a.max_score else 0 %}
+<div class="mt-6 grid gap-4 md:grid-cols-[auto_1fr]">
+  <div class="card card-glow flex items-center gap-5">
+    <div class="ring !h-28 !w-28" style="--p: {{ [pct, 0]|max }}"><span class="num text-2xl font-bold">{{ pct }}%</span></div>
+    <div><p class="label">score</p><p class="num text-4xl font-bold grad-text">{{ a.score }}<span class="text-xl text-dim">/{{ a.max_score }}</span></p>
+      <p class="mt-1 text-xs text-dim">submitted {{ a.submitted_at|when }}</p></div>
+  </div>
+  <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
+    {% for label, n, cls in [('correct', a.items|selectattr('marks', 'gt', 0)|list|length, 'text-emerald-300'),
+                             ('wrong (negative)', a.items|selectattr('marks', 'lt', 0)|list|length, 'text-rose-300'),
+                             ('not answered', a.items|rejectattr('response')|list|length, 'text-dim'),
+                             ('marks lost', -(a.items|selectattr('marks', 'lt', 0)|sum(attribute='marks')), 'text-amber-300')] %}
+    <div class="card"><p class="label">{{ label }}</p><p class="num mt-2 text-3xl font-bold {{ cls }}">{{ n }}</p></div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="card mt-4 overflow-x-auto">
+  <table class="data">
+    <thead><tr><th>subject</th><th class="text-right">score</th><th class="text-right">full</th><th class="text-right">partial</th><th class="text-right">wrong</th><th class="text-right">blank</th></tr></thead>
+    <tbody>
+    {% for s, r in parts.items() %}
+      <tr class="s-{{ s }}"><td><span class="s-text font-semibold">{{ s }}</span></td><td class="num text-right">{{ r.score }}/{{ r.max }}</td><td class="num text-right text-emerald-300">{{ r.correct }}</td>
+        <td class="num text-right text-amber-300">{{ r.partial }}</td><td class="num text-right text-rose-300">{{ r.wrong }}</td><td class="num text-right text-dim">{{ r.blank }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+<div class="mt-4 flex flex-wrap gap-3">
+  <a href="/mistakes" class="btn">{{ icon('alert') }} Mistake notebook</a>
+  <form method="post" action="/drill"><input type="hidden" name="source" value="mistakes"><input type="hidden" name="count" value="10">
+    <button class="btn">{{ icon('zap') }} Retest my mistakes</button></form>
+</div>
+
+<h2 class="h2 mt-10">Review</h2>
+<div class="mt-4 space-y-4">
+  {% for item in a.items %}
+    <section class="card">{% with review = true %}{% include "practice/_question.html" %}{% endwith %}</section>
+  {% endfor %}
+</div>
+{% endblock %}

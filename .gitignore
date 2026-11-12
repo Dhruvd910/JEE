@@ -1,0 +1,11 @@
+# secrets and local data
+backend/.env
+backend/*.db
+backend/*.db-*
+backend/live/
+backend/storage/
+__pycache__/
+.pytest_cache/
+.venv/
+# Tailwind CLI binary downloaded by pytailwindcss
+backend/app/web/bin/

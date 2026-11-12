@@ -1,0 +1,61 @@
+{% from "_icons.html" import icon %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}JEE Workbench{% endblock %} · JEE Workbench</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/app.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230b1020'/%3E%3Cpath d='M9 22V10l7 8 7-8v12' stroke='%2322d3ee' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <script src="/static/vendor/htmx-2.0.4.min.js" defer></script>
+</head>
+<body class="min-h-screen font-sans antialiased" hx-boost="true" hx-headers='{"X-CSRF-Token": "{{ page.csrf }}"}'>
+  <header class="sticky top-0 z-30 border-b border-white/10 bg-base/75 backdrop-blur-xl">
+    <div class="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3">
+      <a href="/" class="flex shrink-0 items-center gap-2.5">
+        <span class="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-cyan-400 to-violet-500 shadow-[0_0_20px_-4px_rgba(34,211,238,.8)]">
+          <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="#060912" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 18V6l7 8 7-8v12"/></svg>
+        </span>
+        <span class="leading-tight"><span class="block text-[15px] font-bold tracking-tight">JEE Workbench</span>
+          <span class="block font-mono text-[10px] uppercase tracking-[.2em] text-dim">main · advanced · josaa</span></span>
+      </a>
+      <nav class="ml-2 hidden flex-1 items-center gap-0.5 xl:flex" aria-label="Main">
+        {% for group in NAV %}
+          {% if not loop.first %}<span class="mx-1 h-5 w-px bg-white/10" aria-hidden="true"></span>{% endif %}
+          {% for href, label, ic in group %}
+            <a href="{{ href }}" class="nav-link {{ 'on' if page.request.url.path.startswith(href) }}">{{ icon(ic) }}{{ label }}</a>
+          {% endfor %}
+        {% endfor %}
+        {% if me and me.role.value == 'admin' %}<a href="/admin" class="nav-link {{ 'on' if page.request.url.path.startswith('/admin') }}">{{ icon('shield') }}Admin</a>{% endif %}
+      </nav>
+      <div class="ml-auto flex shrink-0 items-center gap-2">
+        {% if me %}
+          <span class="hidden items-center gap-2 rounded-full border border-white/10 bg-white/5 py-1 pl-1 pr-3 text-sm sm:flex">
+            <span class="grid h-7 w-7 place-items-center rounded-full bg-gradient-to-br from-violet-400 to-fuchsia-400 font-bold text-slate-950">{{ me.name[:1]|upper }}</span>{{ me.name.split()[0] }}</span>
+          <form method="post" action="/logout"><button class="btn-ghost-sm">Sign out</button></form>
+        {% else %}
+          <a href="/login" class="btn-ghost-sm">Sign in</a>
+          <a href="/register" class="btn-primary !px-3 !py-1.5">Get started</a>
+        {% endif %}
+      </div>
+    </div>
+    <nav class="no-scrollbar mx-auto flex max-w-7xl gap-1 overflow-x-auto border-t border-white/5 px-3 py-2 xl:hidden" aria-label="Main (compact)">
+      {% for group in NAV %}{% for href, label, ic in group %}
+        <a href="{{ href }}" class="nav-link shrink-0 {{ 'on' if page.request.url.path.startswith(href) }}">{{ icon(ic) }}{{ label }}</a>
+      {% endfor %}{% endfor %}
+    </nav>
+  </header>
+  <main class="mx-auto max-w-7xl px-4 py-8">{% block content %}{% endblock %}</main>
+  <footer class="border-t border-white/5">
+    <div class="mx-auto max-w-7xl px-4 py-8 text-xs leading-relaxed text-dim">
+      <p class="label mb-2">data sources</p>
+      Previous-year papers, answer keys and syllabus: NTA (jeemain.nta.nic.in) and JEE Advanced (jeeadv.ac.in).
+      Opening/closing ranks: JoSAA (josaa.nic.in). Rankings: NIRF 2025 Engineering (nirfindia.org).
+      Official paper images are shown to signed-in students for practice and are not redistributed.
+      Not affiliated with NTA, JoSAA, the IITs or the Ministry of Education.
+    </div>
+  </footer>
+</body>
+</html>

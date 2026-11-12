@@ -1,0 +1,58 @@
+{#- Shared admin console shell — identical in NEET Compass and JEE Workbench.
+    Needs: exam ("neet" | "jee"), SECTIONS [(key, label, icon)], section (active key), me, page. -#}
+{% from "_icons.html" import icon %}
+{% set SITE = {"neet": ("NEET Compass", "NEET-UG · MCC · state counselling"), "jee": ("JEE Workbench", "JEE Main · Advanced · JoSAA")} %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Admin console{% endblock %} · {{ SITE[exam][0] }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ CONSOLE_CSS }}">
+  <script src="{{ HTMX_JS }}" defer></script>
+</head>
+<body class="console accent-{{ exam }} min-h-screen font-sans antialiased" hx-boost="true" hx-headers='{"X-CSRF-Token": "{{ page.csrf }}"}'>
+  <header class="console-top">
+    <div class="mx-auto flex max-w-[1400px] flex-wrap items-center gap-x-5 gap-y-3 px-4 py-3">
+      <a href="/admin" class="flex items-center gap-2.5">
+        <span class="acc-bar grid h-9 w-9 place-items-center rounded-xl">
+          <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="#060912" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg>
+        </span>
+        <span class="leading-tight"><span class="block text-[15px] font-bold tracking-tight">Admin console</span>
+          <span class="block font-mono text-[10px] uppercase tracking-[.2em] text-dim">{{ SITE[exam][1] }}</span></span>
+      </a>
+      <nav class="exam-switch" aria-label="Choose site">
+        <a href="{{ '/admin' if exam == 'neet' else '/admin/switch/neet' }}" class="{{ 'on-neet' if exam == 'neet' }}" {% if exam == 'neet' %}aria-current="page"{% endif %} hx-boost="false">
+          <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 12h4l2-5 4 10 2-5h6"/></svg>NEET</a>
+        <a href="{{ '/admin' if exam == 'jee' else '/admin/switch/jee' }}" class="{{ 'on-jee' if exam == 'jee' }}" {% if exam == 'jee' %}aria-current="page"{% endif %} hx-boost="false">
+          <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 18V6l7 8 7-8v12"/></svg>JEE</a>
+      </nav>
+      <div class="ml-auto flex items-center gap-2">
+        <a href="/" class="btn-ghost-sm" hx-boost="false">View {{ SITE[exam][0] }} ↗</a>
+        <span class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 py-1 pl-1 pr-3 text-sm">
+          <span class="acc-bar grid h-7 w-7 place-items-center rounded-full font-bold text-slate-950">{{ (me.name or me.email or "A")[:1]|upper }}</span>
+          <span class="hidden sm:inline">{{ (me.name or me.email).split(" ")[0] }}</span></span>
+        <form method="post" action="/logout"><button class="btn-ghost-sm">Sign out</button></form>
+      </div>
+    </div>
+  </header>
+
+  <div class="mx-auto grid max-w-[1400px] grid-cols-[minmax(0,1fr)] gap-6 px-4 py-6 lg:grid-cols-[220px_minmax(0,1fr)]">
+    <nav aria-label="Admin sections" class="min-w-0 lg:sticky lg:top-24 lg:self-start">
+      <p class="label mb-2 hidden px-3 lg:block">{{ SITE[exam][0] }}</p>
+      <ul class="no-scrollbar flex gap-1 overflow-x-auto rounded-2xl border border-white/10 bg-white/[.03] p-1.5 lg:flex-col lg:overflow-visible">
+        {% for key, label, ic in SECTIONS %}
+          <li><a href="/admin?tab={{ key }}" class="side-link {{ 'on' if section == key }}" {% if section == key %}aria-current="page"{% endif %}>{{ icon(ic, "h-4 w-4 shrink-0") }}{{ label }}</a></li>
+        {% endfor %}
+      </ul>
+      <p class="mt-3 hidden px-3 text-[11px] leading-relaxed text-dim lg:block">Switch sites with NEET | JEE above. Each console shows only its own site's students and data.</p>
+    </nav>
+    <main class="min-w-0 space-y-6" id="admin-page">
+      {% block console %}{% endblock %}
+    </main>
+  </div>
+</body>
+</html>

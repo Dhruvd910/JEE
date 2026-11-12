@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon, SUBJECT_ICON %}
+{% block title %}Custom drill{% endblock %}
+{% block content %}
+<p class="label">custom drill</p>
+<h1 class="h1 mt-1">Build a <span class="grad-text">targeted drill</span></h1>
+<p class="mt-2 max-w-2xl text-dim">3–30 official previous-year questions, timed at about 2 minutes (Main) or 3 minutes (Advanced) each.
+  Marked with each question's real scheme.</p>
+
+<div class="mt-6 grid gap-6 lg:grid-cols-[1.5fr_1fr]">
+  <form class="card card-glow space-y-6" method="post" action="/drill" hx-target="#drill-msg">
+    <fieldset>
+      <legend class="field-label">source</legend>
+      <div class="grid gap-2 sm:grid-cols-3">
+        {% for k, label in sources.items() %}
+        <label class="opt"><input type="radio" name="source" value="{{ k }}" {{ 'checked' if loop.first }}>
+          <span class="text-sm">{{ label }}{% if k == 'mistakes' %} <span class="num text-dim">({{ mistakes.values()|sum }})</span>{% elif k == 'bookmarks' %} <span class="num text-dim">({{ bookmarks }})</span>{% endif %}</span></label>
+        {% endfor %}
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend class="field-label">subject</legend>
+      <div class="grid grid-cols-2 gap-2 xl:grid-cols-4">
+        <label class="opt"><input type="radio" name="subject" value="" checked><span class="text-sm">All three</span></label>
+        {% for s in ['Physics', 'Chemistry', 'Mathematics'] %}
+        <label class="opt s-{{ s }}"><input type="radio" name="subject" value="{{ s }}"><span class="s-text">{{ icon(SUBJECT_ICON[s]) }}</span><span class="text-sm">{{ s }}</span></label>
+        {% endfor %}
+      </div>
+    </fieldset>
+    <div class="grid gap-4 sm:grid-cols-3">
+      <label><span class="field-label">exam</span><select class="field" name="exam">
+        <option value="">Main + Advanced</option><option value="main">JEE Main</option><option value="advanced">JEE Advanced</option></select></label>
+      <label><span class="field-label">question type</span><select class="field" name="qtype">
+        <option value="">Any</option><option value="single">Single correct</option><option value="num">Numerical value</option>
+        <option value="multi">Multiple correct</option><option value="match">Matching list</option></select></label>
+      <label><span class="field-label">questions</span><input class="field" type="number" name="count" min="3" max="30" value="10"></label>
+    </div>
+    <button class="btn-primary">{{ icon('zap') }} Start drill</button>
+    <div id="drill-msg"></div>
+  </form>
+
+  <div class="card">
+    <p class="label">unseen official questions</p>
+    <ul class="mt-4 space-y-3">
+      {% for s in ['Physics', 'Chemistry', 'Mathematics'] %}
+      <li class="s-{{ s }} flex items-center justify-between">
+        <span class="flex items-center gap-2"><span class="s-text">{{ icon(SUBJECT_ICON[s], 'h-5 w-5') }}</span>{{ s }}</span>
+        <span class="num text-xl font-bold s-text">{{ unseen.get(s, 0) }}</span></li>
+      {% endfor %}
+    </ul>
+    <p class="mt-5 text-xs text-dim">Drills never mix in AI-written questions: they use the official papers only. Unseen-first means you never
+      repeat a question until you have seen them all.</p>
+  </div>
+</div>
+{% endblock %}

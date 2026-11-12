@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon, SUBJECT_ICON %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="flex flex-wrap items-end justify-between gap-4">
+  <div>
+    <p class="label">dashboard</p>
+    <h1 class="h1 mt-1">Hey {{ me.name.split()[0] }}, <span class="grad-text">let's build rank.</span></h1>
+  </div>
+  <div class="flex gap-2">
+    <a href="/drill" class="btn">{{ icon('zap') }} Quick drill</a>
+    <a href="/practice" class="btn-primary">{{ icon('target') }} Take a test</a>
+  </div>
+</div>
+
+<div class="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+  {# countdown #}
+  <div class="card card-glow">
+    <p class="label flex items-center gap-1.5">{{ icon('calendar', 'h-3.5 w-3.5') }} exam countdown</p>
+    {% if days_left is not none %}
+      <p class="mt-2"><span class="num text-5xl font-bold grad-text">{{ days_left if days_left >= 0 else 0 }}</span><span class="ml-2 text-dim">days left</span></p>
+      <p class="mt-1 text-xs text-dim">to {{ me.target_date.strftime('%d %b %Y') }}</p>
+    {% else %}
+      <p class="mt-2 text-sm text-dim">Set your exam date. NTA announces each session's dates in its bulletin.</p>
+    {% endif %}
+    <form method="post" action="/target-date" class="mt-3 flex gap-2">
+      <input class="field !py-1.5" type="date" name="target_date" value="{{ me.target_date or '' }}" aria-label="Exam date">
+      <button class="btn !px-3 !py-1.5">Set</button>
+    </form>
+  </div>
+  {# daily quiz #}
+  <div class="card">
+    <p class="label flex items-center gap-1.5">{{ icon('flame', 'h-3.5 w-3.5') }} daily quiz</p>
+    <p class="mt-2"><span class="num text-5xl font-bold text-amber-300">{{ streak }}</span><span class="ml-2 text-dim">day streak</span></p>
+    <p class="mt-1 text-xs text-dim">9 official questions · 20 min · same set for everyone</p>
+    <div class="mt-3">
+      {% if today and today.submitted_at %}
+        <a class="btn !py-1.5" href="/attempt/{{ today.id }}/result">Done · {{ today.score }}/{{ today.max_score }} — review</a>
+      {% else %}
+        <form method="post" action="/practice/daily"><button class="btn-primary !py-1.5">{{ 'Resume' if today else 'Start' }} today's quiz</button></form>
+      {% endif %}
+    </div>
+  </div>
+  {# score trend #}
+  <a href="/analytics" class="card card-hover block xl:col-span-2">
+    <div class="flex items-center justify-between">
+      <p class="label flex items-center gap-1.5">{{ icon('chart', 'h-3.5 w-3.5') }} score trend</p>
+      <span class="text-xs text-dim">{{ data.tests }} tests{% if data.best %} · best <span class="num text-emerald-300">{{ data.best.pct }}%</span>{% endif %}</span>
+    </div>
+    {% if points|length > 1 %}
+      <svg viewBox="0 0 520 120" class="mt-2 h-28 w-full" role="img" aria-label="Score percentage over your last tests">
+        <defs><linearGradient id="tl" x1="0" x2="1"><stop offset="0" stop-color="#22d3ee"/><stop offset="1" stop-color="#a78bfa"/></linearGradient>
+          <linearGradient id="tf" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#22d3ee" stop-opacity=".25"/><stop offset="1" stop-color="#22d3ee" stop-opacity="0"/></linearGradient></defs>
+        <path d="M{{ points[0][0] }},106 {% for x, y, t in points %}L{{ x }},{{ y }} {% endfor %}L{{ points[-1][0] }},106Z" fill="url(#tf)"/>
+        <polyline points="{% for x, y, t in points %}{{ x }},{{ y }} {% endfor %}" fill="none" stroke="url(#tl)" stroke-width="2.5" stroke-linejoin="round"/>
+        {% for x, y, t in points %}<circle cx="{{ x }}" cy="{{ y }}" r="3.5" fill="#0b1020" stroke="#22d3ee" stroke-width="2"><title>{{ t.title }}: {{ t.pct }}%</title></circle>{% endfor %}
+      </svg>
+    {% else %}
+      <p class="mt-6 text-sm text-dim">Finish two tests to see your trend line.</p>
+    {% endif %}
+  </a>
+</div>
+
+<h2 class="h2 mt-10">Subjects</h2>
+<div class="mt-4 grid gap-4 md:grid-cols-3">
+  {% for subject, r in progress.items() %}
+  {% set syl = syllabus.get(subject, {'percent': 0, 'units': 0, 'touched': 0}) %}
+  <div class="card s-{{ subject }} s-edge">
+    <div class="flex items-center gap-4">
+      <div class="ring" style="--p: {{ r.accuracy or 0 }}"><span class="num text-lg font-bold">{{ r.accuracy ~ '%' if r.accuracy is not none else '—' }}</span></div>
+      <div>
+        <p class="flex items-center gap-2 font-semibold"><span class="s-text">{{ icon(SUBJECT_ICON[subject], 'h-5 w-5') }}</span>{{ subject }}</p>
+        <p class="text-xs text-dim">accuracy · {{ r.correct }}/{{ r.attempted }} fully correct</p>
+        {% if mistakes.get(subject) %}<a href="/mistakes?subject={{ subject }}" class="chip-bad mt-2">{{ mistakes[subject] }} to fix</a>{% endif %}
+      </div>
+    </div>
+    <div class="mt-4 space-y-3 text-xs">
+      <div><div class="flex justify-between text-dim"><span>previous-year coverage</span><span class="num">{{ r.pyq_seen }}/{{ r.pyq_total }}</span></div>
+        <div class="bar mt-1"><span style="width: {{ r.coverage }}%"></span></div></div>
+      <div><div class="flex justify-between text-dim"><span>syllabus</span><span class="num">{{ syl.percent }}% · {{ syl.touched }}/{{ syl.units }} units</span></div>
+        <div class="bar mt-1"><span style="width: {{ syl.percent }}%"></span></div></div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="mt-10 grid gap-4 lg:grid-cols-[2fr_1fr]">
+  <div class="card">
+    <h2 class="h2">Recent tests</h2>
+    <div class="mt-3">{% include "_history.html" %}</div>
+  </div>
+  <div class="space-y-4">
+    <div class="card">
+      <p class="label">mocks</p>
+      <ul class="mt-3 space-y-2 text-sm">
+        <li class="flex justify-between">JEE Main mock {{ '<span class="chip-ok">ready</span>'|safe if mocks.main else '<span class="chip-warn">bank filling</span>'|safe }}</li>
+        <li class="flex justify-between">JEE Advanced mock {{ '<span class="chip-ok">ready</span>'|safe if mocks.advanced else '<span class="chip-warn">bank filling</span>'|safe }}</li>
+      </ul>
+    </div>
+    <a href="/choices" class="card card-hover block">
+      <p class="label">counselling</p>
+      <p class="mt-2 text-sm"><span class="num text-2xl font-bold text-violet-300">{{ choices }}</span> <span class="text-dim">programs in your JoSAA choice list</span></p>
+      <p class="mt-2 flex items-center gap-1 text-xs text-cyan-300">Run the predictor to add more {{ icon('arrow', 'h-3 w-3') }}</p>
+    </a>
+  </div>
+</div>
+{% endblock %}

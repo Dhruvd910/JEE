@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}{{ inst.name }}{% endblock %}
+{% block content %}
+<a href="/colleges" class="btn-ghost">← catalogue</a>
+<div class="mt-4 flex flex-wrap items-start justify-between gap-4">
+  <div>
+    <span class="{{ {'IIT': 'chip-vio', 'NIT': 'chip', 'IIIT': 'chip-ok', 'GFTI': 'chip-warn'}[inst.kind] }}">{{ inst.kind }}</span>
+    <h1 class="h1 mt-2">{{ inst.name }}</h1>
+    <p class="mt-1 text-dim">{{ inst.city or '' }}{{ ', ' if inst.city and inst.state }}{{ inst.state or '' }}</p>
+  </div>
+  <a href="/compare?ids={{ inst.id }}" class="btn">{{ icon('scale') }} Compare</a>
+</div>
+
+<div class="mt-6 grid gap-4 md:grid-cols-[auto_1fr]">
+  <div class="card card-glow text-center">
+    <p class="label">nirf 2025 engineering</p>
+    <p class="num mt-2 text-5xl font-bold grad-text">{{ '#' ~ inst.nirf_rank if inst.nirf_rank else '—' }}</p>
+    <p class="mt-1 text-xs text-dim">{{ 'score ' ~ inst.nirf_score if inst.nirf_score else 'not in the top 100' }}</p>
+  </div>
+  {% if inst.nirf_parts %}
+  <div class="card">
+    <p class="label">nirf parameters (out of 100)</p>
+    <div class="mt-3 grid gap-3 sm:grid-cols-5">
+      {% for k, label in [('TLR', 'Teaching & resources'), ('RPC', 'Research'), ('GO', 'Graduation outcomes'), ('OI', 'Outreach & inclusivity'), ('PR', 'Perception')] %}
+      <div><div class="flex justify-between text-xs"><span class="text-dim">{{ label }}</span><span class="num">{{ inst.nirf_parts[k] }}</span></div>
+        <div class="bar mt-1.5"><span style="width: {{ inst.nirf_parts[k] }}%"></span></div></div>
+      {% endfor %}
+    </div>
+    <p class="mt-3 text-[11px] text-dim">Source: NIRF 2025 ({{ inst.nirf_id }}).</p>
+  </div>
+  {% endif %}
+</div>
+
+<h2 class="h2 mt-10">Opening → closing ranks <span class="chip ml-2">JoSAA final round</span></h2>
+<form class="card mt-4 grid gap-3 sm:grid-cols-3" hx-get="/colleges/{{ inst.id }}" hx-target="#ranks" hx-trigger="change">
+  <label><span class="field-label">quota</span><select class="field" name="quota">
+    {% for qq in quotas %}<option value="{{ qq }}" {{ 'selected' if qq == quota }}>{{ {'AI': 'All India', 'HS': 'Home State', 'OS': 'Other State', 'GO': 'Goa', 'JK': 'Jammu & Kashmir', 'LA': 'Ladakh'}.get(qq, qq) }}</option>{% endfor %}</select></label>
+  <label><span class="field-label">seat type</span><select class="field" name="seat">
+    {% for s in seats %}<option {{ 'selected' if s == seat }}>{{ s }}</option>{% endfor %}</select></label>
+  <label><span class="field-label">gender pool</span><select class="field" name="gender">
+    {% for g in ['Gender-Neutral', 'Female-only (including Supernumerary)'] %}<option {{ 'selected' if g == gender }}>{{ g }}</option>{% endfor %}</select></label>
+</form>
+<div id="ranks" class="mt-4">{% include "colleges/_ranks.html" %}</div>
+{% endblock %}

@@ -1,0 +1,19 @@
+{% if history %}
+<div class="overflow-x-auto">
+<table class="data">
+  <thead><tr><th>test</th><th>type</th><th>started</th><th class="text-right">score</th></tr></thead>
+  <tbody>
+  {% for a in history %}
+    <tr>
+      <td><a class="text-cyan-200 hover:text-violet-200" href="/attempt/{{ a.id }}{{ '/result' if a.submitted_at else '' }}">{{ a.title }}</a></td>
+      <td><span class="{{ {'mock': 'chip-vio', 'daily': 'chip-warn', 'drill': 'chip-ok'}.get(a.mode, 'chip') }}">{{ a.mode }}</span></td>
+      <td class="num text-xs text-dim">{{ a.started_at|when }}</td>
+      <td class="num text-right">{% if a.submitted_at %}{{ a.score }}<span class="text-dim">/{{ a.max_score }}</span>{% else %}<span class="chip-warn">in progress</span>{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p class="text-sm text-dim">No tests yet — start with today's quiz or a previous-year paper.</p>
+{% endif %}

@@ -1,0 +1,54 @@
+{% extends "admin/_shell.html" %}
+{% block title %}{{ u.name }} · Student file{% endblock %}
+{% block console %}
+<a href="/admin?tab=students" class="btn-ghost">← Student register</a>
+<section class="card card-glow">
+  <div class="flex flex-wrap items-start gap-5">
+    <span class="acc-bar grid h-16 w-16 shrink-0 place-items-center rounded-2xl text-2xl font-bold text-slate-950">{{ u.name[:1]|upper }}</span>
+    <div class="min-w-0 flex-1">
+      <p class="label">student file · #{{ '%05d'|format(u.id) }}</p>
+      <h1 class="h1 mt-1">{{ u.name }}</h1>
+      <p class="break-all text-sm text-dim">{{ u.email }}</p>
+      <div class="mt-2 flex flex-wrap gap-1.5">
+        {% if u.role.value == 'admin' %}<span class="chip-vio">admin</span>{% endif %}
+        <span class="chip">{{ streak }}-day quiz streak</span>
+        {% if u.target_date %}<span class="chip-warn">exam {{ u.target_date.strftime('%d %b %Y') }}</span>{% endif %}
+        {% if u.home_state %}<span class="chip">{{ u.home_state }}</span>{% endif %}
+      </div>
+    </div>
+    <dl class="grid grid-cols-3 gap-2 text-center">
+      <div class="stat"><dt>joined</dt><dd class="!text-sm">{{ u.created_at.strftime('%d %b %Y') }}</dd></div>
+      <div class="stat"><dt>last seen</dt><dd class="!text-sm">{{ u.last_login_at.strftime('%d %b %Y') if u.last_login_at else '—' }}</dd></div>
+      <div class="stat"><dt>sign-ins</dt><dd class="!text-sm">{{ u.login_count }}</dd></div>
+    </dl>
+  </div>
+</section>
+
+<dl class="grid grid-cols-2 gap-4 xl:grid-cols-4">
+  <div class="stat"><dt>tests finished</dt><dd class="acc-text">{{ data.tests }}</dd></div>
+  <div class="stat"><dt>best score</dt><dd>{{ (data.best.pct ~ '%') if data.best else '—' }}</dd></div>
+  <div class="stat"><dt>attempt rate</dt><dd>{{ (data.attempt_rate ~ '%') if data.attempt_rate is not none else '—' }}</dd></div>
+  <div class="stat"><dt>marks lost to negatives</dt><dd class="text-rose-300">{{ data.negative_lost }}</dd></div>
+</dl>
+
+<h2 class="h2">Subject-wise progress</h2>
+{% include "_progress.html" %}
+
+<div class="grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+  <section class="card"><h2 class="h2 mb-3">Tests</h2>{% include "_history.html" %}</section>
+  <div class="space-y-6">
+    <section class="card">
+      <h2 class="h2">Syllabus</h2>
+      <ul class="mt-3 space-y-3 text-sm">{% for s, r in syllabus.items() %}
+        <li><div class="flex justify-between"><span>{{ s }}</span><span class="num text-dim">{{ r.percent }}% · {{ r.touched }}/{{ r.units }}</span></div>
+          <div class="bar mt-1"><span style="width: {{ r.percent }}%"></span></div></li>{% else %}<li class="text-dim">Syllabus not loaded.</li>{% endfor %}</ul>
+      <p class="mt-3 text-sm">Mistakes to fix: {% for s, n in mistakes.items() %}<span class="chip-bad">{{ s }} {{ n }}</span> {% else %}<span class="text-dim">none</span>{% endfor %}</p>
+    </section>
+    <section class="card">
+      <h2 class="h2">JoSAA choice list <span class="text-sm font-normal text-dim">({{ choices|length }})</span></h2>
+      <ol class="mt-3 space-y-1 text-sm">{% for c in choices[:12] %}<li><span class="num text-dim">{{ c.position }}.</span> {{ c.institute.name }} — <span class="text-dim">{{ c.program }}</span></li>{% else %}<li class="text-dim">Empty.</li>{% endfor %}</ol>
+      <p class="mt-3 text-xs text-dim">Category and gender are used only by the predictor and are not shown here.</p>
+    </section>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends "admin/_shell.html" %}
+{% block title %}{{ paper.title }} · Question bank{% endblock %}
+{% block console %}
+<a href="/admin?tab=questions" class="btn-ghost">← Question bank</a>
+<header>
+  <p class="label">official paper</p>
+  <h1 class="h1 mt-1">{{ paper.title }}</h1>
+  <p class="mt-1 text-sm text-dim">Check each crop and key against the <a class="btn-ghost" href="{{ paper.source_url }}" target="_blank" rel="noopener">paper</a>
+    and <a class="btn-ghost" href="{{ paper.key_url }}" target="_blank" rel="noopener">official key</a>. Hide a question if it is cut off or wrong.</p>
+</header>
+<div class="space-y-4">
+{% for q in paper.questions %}
+  <section class="card">
+    <div class="mb-3 flex flex-wrap items-center gap-2 text-xs">
+      <span class="num rounded-lg bg-white/10 px-2 py-0.5 text-sm font-bold">Q{{ q.number }}</span><span class="chip">{{ q.subject }}</span>
+      <span class="text-dim">{{ q.section }} · {{ q.qtype }} · +{{ q.marks_full }}/−{{ q.marks_neg }}</span>
+      <span>key <span class="num text-emerald-300">{{ q.answer|answer_text(q.exam == 'main') }}</span></span>
+      {% if q.nta_qid %}<span class="font-mono text-dim">NTA id {{ q.nta_qid }}</span>{% endif %}
+      <span class="text-dim">answered ×{{ answered.get(q.id, 0) }}</span>
+      <span class="ml-auto">{% if q.status == 'dropped' %}<span class="chip-bad">no usable key</span>
+        {% else %}<button class="btn-ghost-sm" hx-post="/admin/questions/{{ q.id }}/toggle" hx-swap="outerHTML">{{ 'served · hide' if q.status == 'served' else 'hidden · unhide' }}</button>{% endif %}</span>
+    </div>
+    <div class="sheet">{% for img in q.images %}<img src="/img/{{ img }}" alt="Q{{ q.number }}" loading="lazy">{% endfor %}
+      {% if q.option_images %}<div class="mt-2 grid grid-cols-2 gap-2">{% for img in q.option_images %}<div class="flex items-center gap-2"><span class="font-mono text-xs">({{ loop.index }})</span><img src="/img/{{ img }}" alt="option {{ loop.index }}" loading="lazy"></div>{% endfor %}</div>{% endif %}
+    </div>
+  </section>
+{% endfor %}
+</div>
+{% endblock %}

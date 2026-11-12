@@ -1,0 +1,19 @@
+<div class="card overflow-x-auto !p-0">
+<table class="data">
+  <thead><tr><th class="w-10"><span class="sr-only">compare</span></th><th class="w-16">nirf</th><th>institute</th><th>type</th><th>state</th><th class="text-right">programs</th></tr></thead>
+  <tbody>
+  {% for i in rows %}
+    <tr>
+      <td><input type="checkbox" name="ids" value="{{ i.id }}" class="accent-cyan-400" aria-label="Compare {{ i.name }}"></td>
+      <td>{% if i.nirf_rank %}<span class="num font-bold {{ 'text-amber-300' if i.nirf_rank <= 10 else 'text-cyan-200' }}">#{{ i.nirf_rank }}</span>{% else %}<span class="text-dim">—</span>{% endif %}</td>
+      <td><a class="font-medium hover:text-cyan-200" href="/colleges/{{ i.id }}">{{ i.name }}</a></td>
+      <td><span class="{{ {'IIT': 'chip-vio', 'NIT': 'chip', 'IIIT': 'chip-ok', 'GFTI': 'chip-warn'}[i.kind] }}">{{ i.kind }}</span></td>
+      <td class="text-dim">{{ i.state or '—' }}</td>
+      <td class="num text-right">{{ programs.get(i.id, 0) }}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="6" class="text-dim">No match.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>

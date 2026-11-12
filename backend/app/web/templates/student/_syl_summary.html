@@ -1,0 +1,8 @@
+{% from "_icons.html" import icon, SUBJECT_ICON %}
+{% for subject, r in summary.items() %}
+<div class="card s-{{ subject }} s-edge flex items-center gap-4">
+  <div class="ring" style="--p: {{ r.percent }}"><span class="num text-lg font-bold">{{ r.percent }}%</span></div>
+  <div><p class="flex items-center gap-2 font-semibold"><span class="s-text">{{ icon(SUBJECT_ICON[subject], 'h-5 w-5') }}</span>{{ subject }}</p>
+    <p class="text-xs text-dim">{{ r.touched }} of {{ r.units }} units started</p></div>
+</div>
+{% endfor %}

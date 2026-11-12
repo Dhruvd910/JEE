@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon, SUBJECT_ICON %}
+{% block title %}Syllabus tracker{% endblock %}
+{% block content %}
+<p class="label">syllabus tracker</p>
+<h1 class="h1 mt-1">Map the <span class="grad-text">whole syllabus</span></h1>
+<p class="mt-2 max-w-3xl text-dim">All units of NTA's official JEE Main syllabus (<a class="btn-ghost" href="{{ source }}" target="_blank" rel="noopener">PDF, Oct 2026</a>).
+  Mark each unit as you go: <span class="text-sky-300">studied</span> → <span class="text-violet-300">revised</span> → <span class="text-emerald-300">confident</span>.</p>
+
+<div class="mt-6 grid gap-4 md:grid-cols-3" id="syl-summary">{% include "student/_syl_summary.html" %}</div>
+
+<div class="mt-8 grid gap-6 lg:grid-cols-2 2xl:grid-cols-3">
+  {% for subject, rows in units.items() %}
+  <section class="card s-{{ subject }}">
+    <h2 class="flex items-center gap-2 text-lg font-semibold"><span class="s-text">{{ icon(SUBJECT_ICON[subject], 'h-5 w-5') }}</span>{{ subject }}</h2>
+    <ul class="mt-3 divide-y divide-white/5">
+      {% for u, st in rows %}{% include "student/_unit.html" %}{% endfor %}
+    </ul>
+  </section>
+  {% else %}
+  <p class="text-dim">The syllabus is not loaded yet (python -m app.maintenance load-data).</p>
+  {% endfor %}
+</div>
+{% endblock %}

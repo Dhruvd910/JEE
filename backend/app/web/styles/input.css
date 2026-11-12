@@ -1,0 +1,145 @@
+@import "tailwindcss";
+@source "../templates";
+
+/* JEE Workbench — "engineering lab at night": circuit-grid background, glass panels, neon cyan → violet accents,
+   one colour per subject (Physics sky, Chemistry emerald, Mathematics fuchsia), monospace for numbers and labels. */
+@theme {
+  --font-sans: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Code", Consolas, monospace;
+  --color-ink: #e8eefc;
+  --color-dim: #94a3c4;
+  --color-base: #060912;
+  --color-deep: #0b1020;
+  --color-phy: #38bdf8;
+  --color-che: #34d399;
+  --color-mat: #e879f9;
+  --animate-dash: dash 6s linear infinite;
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-spin-slow: spin 14s linear infinite;
+  @keyframes dash { to { stroke-dashoffset: -400; } }
+  @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+}
+
+:root { color-scheme: dark; }
+
+body {
+  background-color: var(--color-base);
+  color: var(--color-ink);
+  background-image:
+    radial-gradient(900px 500px at 8% -10%, rgba(34, 211, 238, .16), transparent 60%),
+    radial-gradient(800px 500px at 100% 0%, rgba(167, 139, 250, .16), transparent 60%),
+    radial-gradient(700px 400px at 50% 110%, rgba(232, 121, 249, .08), transparent 60%),
+    linear-gradient(rgba(148, 163, 196, .05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 196, .05) 1px, transparent 1px);
+  background-size: auto, auto, auto, 32px 32px, 32px 32px;
+  background-attachment: fixed;
+}
+
+@layer components {
+  .label, .field-label { @apply font-mono text-[11px] uppercase tracking-[.16em] text-dim; }
+  .field-label { @apply mb-1.5 block; }
+  .h1 { @apply text-3xl font-bold tracking-tight sm:text-4xl; }
+  .h2 { @apply text-xl font-semibold tracking-tight; }
+  .grad-text { @apply bg-gradient-to-r from-cyan-300 via-sky-300 to-violet-300 bg-clip-text text-transparent; }
+  .num { @apply font-mono tabular-nums; }
+
+  .card { @apply relative rounded-2xl border border-white/10 bg-white/[.035] p-5 shadow-[0_8px_30px_-12px_rgba(0,0,0,.6)] backdrop-blur-sm; }
+  .card-hover { @apply transition duration-200 hover:-translate-y-0.5 hover:border-cyan-400/40 hover:shadow-[0_10px_40px_-12px_rgba(34,211,238,.35)]; }
+  .card-glow { @apply border-cyan-400/30 bg-gradient-to-br from-cyan-400/10 via-white/[.03] to-violet-500/10; }
+
+  .btn, .btn-primary, .btn-ghost-sm {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition
+           focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300 disabled:opacity-40;
+  }
+  .btn { @apply border border-white/15 bg-white/5 text-ink hover:border-cyan-300/50 hover:bg-cyan-400/10; }
+  .btn-primary { @apply bg-gradient-to-r from-cyan-400 to-violet-400 text-slate-950 shadow-[0_0_24px_-6px_rgba(34,211,238,.7)] hover:brightness-110; }
+  .btn-ghost-sm { @apply px-2 py-1 text-xs text-cyan-300 hover:bg-cyan-400/10; }
+  .btn-ghost { @apply font-mono text-xs text-cyan-300 underline decoration-cyan-300/40 underline-offset-4 hover:text-violet-300; }
+
+  .chip, .chip-ok, .chip-warn, .chip-bad, .chip-vio {
+    @apply inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[11px] font-medium;
+  }
+  .chip { @apply border-cyan-300/30 bg-cyan-400/10 text-cyan-200; }
+  .chip-ok { @apply border-emerald-300/30 bg-emerald-400/10 text-emerald-200; }
+  .chip-warn { @apply border-amber-300/30 bg-amber-400/10 text-amber-200; }
+  .chip-bad { @apply border-rose-300/30 bg-rose-400/10 text-rose-200; }
+  .chip-vio { @apply border-violet-300/30 bg-violet-400/10 text-violet-200; }
+  .alert { @apply rounded-xl border border-amber-300/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-100; }
+
+  .field { @apply block w-full rounded-xl border border-white/15 bg-deep/80 px-3.5 py-2.5 text-sm text-ink placeholder:text-dim/60 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-400/20 focus:outline-none; }
+
+  table.data { @apply w-full border-collapse text-sm; }
+  table.data th { @apply border-b border-white/10 px-3 py-2.5 text-left font-mono text-[11px] font-normal uppercase tracking-[.14em] text-dim; }
+  table.data td { @apply border-b border-white/5 px-3 py-2 align-top; }
+  table.data tbody tr { @apply transition hover:bg-cyan-400/[.04]; }
+
+  .bar { @apply h-2 w-full overflow-hidden rounded-full bg-white/10; }
+  .bar > span { @apply block h-full rounded-full bg-gradient-to-r from-cyan-400 to-violet-400; }
+
+  /* progress ring: style="--p: 42; --c: var(--color-phy)" */
+  .ring {
+    @apply relative grid h-20 w-20 shrink-0 place-items-center rounded-full;
+    background: conic-gradient(var(--c, #22d3ee) calc(var(--p, 0) * 1%), rgba(255, 255, 255, .08) 0);
+  }
+  .ring::before { content: ""; @apply absolute inset-[7px] rounded-full bg-deep; }
+  .ring > * { @apply relative; }
+
+  /* subject accents */
+  .s-Physics { --c: var(--color-phy); }
+  .s-Chemistry { --c: var(--color-che); }
+  .s-Mathematics { --c: var(--color-mat); }
+  .s-text { color: var(--c, #22d3ee); }
+  .s-bg { background: color-mix(in oklab, var(--c, #22d3ee) 14%, transparent); border-color: color-mix(in oklab, var(--c, #22d3ee) 40%, transparent); }
+  .s-edge { border-left: 3px solid var(--c, #22d3ee); }
+
+  .nav-link { @apply inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm text-dim transition hover:bg-white/5 hover:text-ink; }
+  .nav-link.on { @apply bg-gradient-to-r from-cyan-400/15 to-violet-400/15 text-ink ring-1 ring-cyan-300/30; }
+
+  /* exam room: official papers are black on white, shown on a clean sheet */
+  .sheet { @apply overflow-x-auto rounded-xl bg-white p-3 text-slate-900; }
+  .sheet img { @apply mx-auto block h-auto max-w-full; }
+  .opt { @apply flex cursor-pointer items-center gap-3 rounded-xl border border-white/10 bg-white/[.03] px-3 py-2 transition hover:border-cyan-300/50; }
+  .opt:has(input:checked) { @apply border-cyan-300 bg-cyan-400/10 shadow-[0_0_0_1px_rgba(34,211,238,.4)]; }
+  .opt input { @apply accent-cyan-400; }
+  .pal { @apply flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 font-mono text-xs text-dim transition hover:border-cyan-300; }
+  .pal.done { @apply border-emerald-300/60 bg-emerald-400/15 text-emerald-200; }
+
+  .seg { @apply inline-flex rounded-lg border border-white/10 bg-white/5 p-0.5; }
+  .seg button { @apply rounded-md px-2.5 py-1 font-mono text-[11px] text-dim transition hover:text-ink; }
+  .seg button.on-studied { @apply bg-sky-400 font-bold text-slate-950; }
+  .seg button.on-revised { @apply bg-violet-400 font-bold text-slate-950; }
+  .seg button.on-confident { @apply bg-emerald-400 font-bold text-slate-950; }
+}
+
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* ---------------------------------------------------------------- shared admin console (identical in NEET and JEE) */
+@layer components {
+  .console-top { @apply sticky top-0 z-30 border-b border-white/10 bg-base/80 backdrop-blur-xl; }
+  .exam-switch { @apply inline-flex rounded-xl border border-white/10 bg-white/5 p-1; }
+  .exam-switch a { @apply inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-semibold text-dim transition hover:text-ink; }
+  .exam-switch a.on-neet { @apply bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 shadow-[0_0_20px_-6px_rgba(52,211,153,.8)]; }
+  .exam-switch a.on-jee { @apply bg-gradient-to-r from-cyan-400 to-violet-400 text-slate-950 shadow-[0_0_20px_-6px_rgba(34,211,238,.8)]; }
+  .side-link { @apply flex items-center gap-2.5 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-medium text-dim transition hover:bg-white/5 hover:text-ink; }
+  .side-link.on { @apply bg-gradient-to-r from-white/10 to-white/[.03] text-ink ring-1 ring-white/15; }
+  .stat { @apply rounded-2xl border border-white/10 bg-white/[.035] p-4; }
+  .stat dt { @apply font-mono text-[11px] uppercase tracking-[.16em] text-dim; }
+  .stat dd { @apply mt-1 font-mono text-2xl font-bold tabular-nums; }
+  .feed-dot { @apply absolute -left-[27px] top-1 h-3 w-3 rounded-full ring-4 ring-deep; }
+}
+.accent-neet { --acc-a: #34d399; --acc-b: #2dd4bf; }
+.accent-jee { --acc-a: #22d3ee; --acc-b: #a78bfa; }
+.acc-text { background: linear-gradient(90deg, var(--acc-a, #22d3ee), var(--acc-b, #a78bfa)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.acc-bar { background: linear-gradient(90deg, var(--acc-a, #22d3ee), var(--acc-b, #a78bfa)); }
+
+/* Light-theme utilities used by older shared partials read well on the dark console. */
+.console .text-slate-400, .console .text-slate-500, .console .text-slate-600 { color: var(--color-dim); }
+.console .text-slate-700, .console .text-slate-800, .console .text-slate-900 { color: var(--color-ink); }
+.console .bg-slate-50, .console .bg-slate-100 { background-color: rgba(255, 255, 255, .06); }
+.console .border-slate-100, .console .border-slate-200 { border-color: rgba(255, 255, 255, .1); }
+.console .bg-teal-600 { background: linear-gradient(90deg, #34d399, #2dd4bf); }
+.console .text-rose-700, .console .text-red-700 { color: #fda4af; }
+.console .muted { color: var(--color-dim); }
+.console .btn-secondary { @apply inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-semibold text-ink transition hover:border-cyan-300/50 hover:bg-cyan-400/10; }
+.console .input { @apply block w-full rounded-xl border border-white/15 bg-deep/80 px-3.5 py-2.5 text-sm text-ink placeholder:text-dim/60 focus:border-cyan-300 focus:outline-none; }

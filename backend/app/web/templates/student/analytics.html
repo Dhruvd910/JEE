@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Analytics{% endblock %}
+{% block content %}
+<p class="label">analytics</p>
+<h1 class="h1 mt-1">Your <span class="grad-text">performance telemetry</span></h1>
+
+<div class="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+  {% for label, v, cls in [('tests finished', data.tests, 'grad-text'),
+                           ('best score', (data.best.pct ~ '%') if data.best else '—', 'text-emerald-300'),
+                           ('attempt rate', (data.attempt_rate ~ '%') if data.attempt_rate is not none else '—', 'text-sky-300'),
+                           ('marks lost to negatives', data.negative_lost, 'text-rose-300')] %}
+  <div class="card"><p class="label">{{ label }}</p><p class="num mt-2 text-4xl font-bold {{ cls }}">{{ v }}</p></div>
+  {% endfor %}
+</div>
+
+<div class="card mt-4">
+  <div class="flex items-center justify-between"><h2 class="h2">Score % by test</h2><span class="text-xs text-dim">hover a point for details</span></div>
+  {% if points %}
+  <svg viewBox="0 0 640 180" class="mt-3 w-full" role="img" aria-label="Score percentage for each finished test, oldest first">
+    <defs><linearGradient id="al" x1="0" x2="1"><stop offset="0" stop-color="#22d3ee"/><stop offset="1" stop-color="#a78bfa"/></linearGradient>
+      <linearGradient id="af" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#a78bfa" stop-opacity=".25"/><stop offset="1" stop-color="#a78bfa" stop-opacity="0"/></linearGradient></defs>
+    {% for g in [0, 25, 50, 75, 100] %}{% set y = 156 - 132 * g / 100 %}
+      <line x1="24" x2="616" y1="{{ y }}" y2="{{ y }}" stroke="#94a3c4" stroke-opacity=".12"/>
+      <text x="2" y="{{ y + 3 }}" fill="#94a3c4" font-size="9" font-family="JetBrains Mono">{{ g }}</text>{% endfor %}
+    {% if points|length > 1 %}
+    <path d="M{{ points[0][0] }},156 {% for x, y, t in points %}L{{ x }},{{ y }} {% endfor %}L{{ points[-1][0] }},156Z" fill="url(#af)"/>
+    <polyline points="{% for x, y, t in points %}{{ x }},{{ y }} {% endfor %}" fill="none" stroke="url(#al)" stroke-width="2.5" stroke-linejoin="round"/>
+    {% endif %}
+    {% for x, y, t in points %}<a href="/attempt/{{ t.id }}/result"><circle cx="{{ x }}" cy="{{ y }}" r="4.5" fill="#0b1020" stroke="{{ {'mock': '#a78bfa', 'daily': '#fcd34d', 'drill': '#34d399'}.get(t.mode, '#22d3ee') }}" stroke-width="2.5"><title>{{ t.title }} — {{ t.score }}/{{ t.max }} ({{ t.pct }}%)</title></circle></a>{% endfor %}
+  </svg>
+  <p class="mt-2 flex flex-wrap gap-3 text-xs text-dim"><span class="text-cyan-300">● paper</span><span class="text-violet-300">● mock</span><span class="text-amber-300">● daily</span><span class="text-emerald-300">● drill</span></p>
+  {% else %}<p class="mt-4 text-sm text-dim">Finish a test to start your chart.</p>{% endif %}
+</div>
+
+<h2 class="h2 mt-10">Subjects</h2>
+<div class="mt-4">{% include "_progress.html" %}</div>
+
+<div class="card mt-6 overflow-x-auto">
+  <h2 class="h2">Accuracy by question type</h2>
+  <p class="mt-1 text-sm text-dim">Find where marks leak: numericals vs MCQs, multi-correct partials, matching lists.</p>
+  <table class="data mt-3">
+    <thead><tr><th>subject</th><th>type</th><th class="text-right">given</th><th class="text-right">attempted</th><th class="text-right">fully correct</th><th>accuracy</th></tr></thead>
+    <tbody>
+    {% for (subject, qtype), r in data.by_type.items() %}
+      <tr class="s-{{ subject }}"><td class="s-text font-semibold">{{ subject }}</td>
+        <td>{{ {'single': 'Single correct', 'multi': 'Multiple correct', 'match': 'Matching list', 'num': 'Numerical'}[qtype] }}</td>
+        <td class="num text-right">{{ r.given }}</td><td class="num text-right">{{ r.attempted }}</td><td class="num text-right">{{ r.correct }}</td>
+        <td class="w-48">{% if r.accuracy is not none %}<div class="flex items-center gap-2"><div class="bar"><span style="width: {{ r.accuracy }}%"></span></div><span class="num w-10 text-right text-xs">{{ r.accuracy }}%</span></div>{% else %}<span class="text-dim">—</span>{% endif %}</td></tr>
+    {% else %}
+      <tr><td colspan="6" class="text-dim">No answers yet.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

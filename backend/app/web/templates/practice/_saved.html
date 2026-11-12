@@ -1,0 +1,2 @@
+<span class="{{ 'text-emerald-300' if item.response else 'text-dim' }}">{{ 'saved ✓' if item.response else 'cleared' }}</span>
+<a id="pal-{{ item.position }}" href="#q{{ item.position }}" class="pal {{ 'done' if item.response }}" hx-swap-oob="true">{{ item.position }}</a>

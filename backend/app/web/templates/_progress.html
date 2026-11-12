@@ -1,0 +1,15 @@
+{# subject-wise progress; expects `progress` #}
+{% from "_icons.html" import icon, SUBJECT_ICON %}
+<div class="grid gap-4 md:grid-cols-3">
+  {% for subject, r in progress.items() %}
+  <div class="card s-{{ subject }} s-edge flex items-center gap-4">
+    <div class="ring" style="--p: {{ r.accuracy or 0 }}"><span class="num text-lg font-bold">{{ r.accuracy ~ '%' if r.accuracy is not none else '—' }}</span></div>
+    <div class="min-w-0 flex-1">
+      <p class="flex items-center gap-2 font-semibold"><span class="s-text">{{ icon(SUBJECT_ICON.get(subject, 'atom'), 'h-5 w-5') }}</span>{{ subject }}</p>
+      <p class="text-xs text-dim">{{ r.correct }}/{{ r.attempted }} fully correct · {{ r.given }} given</p>
+      <div class="mt-2 flex justify-between text-[11px] text-dim"><span>previous-year coverage</span><span class="num">{{ r.pyq_seen }}/{{ r.pyq_total }}</span></div>
+      <div class="bar mt-1"><span style="width: {{ r.coverage }}%"></span></div>
+    </div>
+  </div>
+  {% endfor %}
+</div>

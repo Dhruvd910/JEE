@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Rank → college predictor{% endblock %}
+{% block content %}
+<p class="label">predictor</p>
+<h1 class="h1 mt-1">Rank <span class="grad-text">→ college</span></h1>
+<p class="mt-2 max-w-3xl text-dim">Your rank against JoSAA final-round closing ranks of {{ years|join(', ') }} — where students with your rank actually got
+  seats, not a made-up probability. IITs use your JEE Advanced rank; NITs, IIITs and GFTIs your JEE Main rank; category seats your category rank.</p>
+
+<form class="card card-glow mt-6 grid gap-4 md:grid-cols-4" hx-get="/predictor" hx-target="#prediction" hx-push-url="true">
+  <input type="hidden" name="go" value="1">
+  <label><span class="field-label">JEE Main CRL rank</span><input class="field num" name="main_rank" inputmode="numeric" value="{{ form.main_rank }}" placeholder="e.g. 12500"></label>
+  <label><span class="field-label">Main category rank</span><input class="field num" name="main_cat_rank" inputmode="numeric" value="{{ form.main_cat_rank }}"></label>
+  <label><span class="field-label">Advanced CRL rank</span><input class="field num" name="adv_rank" inputmode="numeric" value="{{ form.adv_rank }}" placeholder="for IITs"></label>
+  <label><span class="field-label">Advanced category rank</span><input class="field num" name="adv_cat_rank" inputmode="numeric" value="{{ form.adv_cat_rank }}"></label>
+  <label><span class="field-label">category</span><select class="field" name="category">
+    {% for c in categories %}<option {{ 'selected' if c == form.category }}>{{ c }}</option>{% endfor %}</select></label>
+  <label><span class="field-label">gender</span><select class="field" name="gender">
+    <option value="male" {{ 'selected' if form.gender != 'female' }}>Male / other</option>
+    <option value="female" {{ 'selected' if form.gender == 'female' }}>Female</option></select></label>
+  <label><span class="field-label">home state (domicile)</span><select class="field" name="home_state"><option value="">—</option>
+    {% for s in STATES %}<option {{ 'selected' if s == form.home_state }}>{{ s }}</option>{% endfor %}</select></label>
+  <label><span class="field-label">branch contains</span><input class="field" name="program" value="{{ form.program }}" placeholder="e.g. Computer, Electrical"></label>
+  <fieldset class="flex flex-wrap items-center gap-2 md:col-span-3"><legend class="field-label">institute types</legend>
+    {% for k in ['IIT', 'NIT', 'IIIT', 'GFTI'] %}<label class="opt !py-1.5"><input type="checkbox" name="kinds" value="{{ k }}" {{ 'checked' if k in form.kinds }}><span class="text-sm">{{ k }}</span></label>{% endfor %}
+    <label class="opt !py-1.5"><input type="checkbox" name="pwd" {{ 'checked' if form.pwd }}><span class="text-sm">PwD</span></label>
+  </fieldset>
+  <div class="flex items-end"><button class="btn-primary w-full">{{ icon('compass') }} Predict</button></div>
+</form>
+
+<div id="prediction" class="mt-6">{% include "_prediction.html" %}</div>
+{% endblock %}

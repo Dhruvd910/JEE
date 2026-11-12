@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Mistake notebook{% endblock %}
+{% block content %}
+<div class="flex flex-wrap items-end justify-between gap-4">
+  <div>
+    <p class="label">mistake notebook</p>
+    <h1 class="h1 mt-1">Turn mistakes into <span class="grad-text">marks</span></h1>
+    <p class="mt-2 max-w-2xl text-dim">Every question you got wrong or only partly right (your latest attempt at it), plus the questions you bookmarked.</p>
+  </div>
+  <form method="post" action="/drill" hx-target="#retest-msg">
+    <input type="hidden" name="source" value="{{ 'bookmarks' if tab == 'bookmarks' else 'mistakes' }}">
+    <input type="hidden" name="subject" value="{{ subject }}"><input type="hidden" name="count" value="15">
+    <button class="btn-primary">{{ icon('zap') }} Retest {{ 'bookmarks' if tab == 'bookmarks' else 'these' }}</button>
+  </form>
+</div>
+<div id="retest-msg" class="mt-2"></div>
+
+<div class="mt-6 flex flex-wrap items-center gap-2">
+  <a href="/mistakes?tab=mistakes&subject={{ subject }}" class="nav-link {{ 'on' if tab != 'bookmarks' }}">{{ icon('alert') }} Mistakes <span class="num text-dim">{{ counts.values()|sum }}</span></a>
+  <a href="/mistakes?tab=bookmarks&subject={{ subject }}" class="nav-link {{ 'on' if tab == 'bookmarks' }}">{{ icon('star') }} Bookmarks <span class="num text-dim">{{ bm|length }}</span></a>
+  <span class="mx-2 h-5 w-px bg-white/10"></span>
+  {% for s in ['', 'Physics', 'Chemistry', 'Mathematics'] %}
+    <a href="/mistakes?tab={{ tab }}&subject={{ s }}" class="nav-link {{ 'on' if s == subject }} s-{{ s }}">{{ s or 'All' }}{% if s and counts.get(s) and tab != 'bookmarks' %} <span class="num s-text">{{ counts[s] }}</span>{% endif %}</a>
+  {% endfor %}
+</div>
+
+<div class="mt-6 space-y-4">
+  {% for item in items %}
+    <section class="card">{% with review = true %}{% include "practice/_question.html" %}{% endwith %}</section>
+  {% else %}
+    <div class="card text-center"><p class="text-lg font-semibold">{{ 'No bookmarks yet.' if tab == 'bookmarks' else 'No mistakes here — nice.' }}</p>
+      <p class="mt-1 text-sm text-dim">{{ 'Use ☆ Bookmark on any question in a test or review.' if tab == 'bookmarks' else 'Take a test and wrong answers will collect here automatically.' }}</p></div>
+  {% endfor %}
+</div>
+{% endblock %}
