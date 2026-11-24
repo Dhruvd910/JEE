@@ -3,14 +3,14 @@ from datetime import date
 
 from sqlalchemy import select
 
-from app.models import Attempt, AttemptItem, Institute, Question, Role, User
+from app.models import Attempt, AttemptItem, Institute, Paper, Question, Role, User
 from app.services import exams, predictor
 from tests.conftest import Browser, make_colleges, make_paper, make_variants
 
 
 def test_register_login_logout(browser):
     browser.register()
-    assert "Hey Asha" in browser.get("/dashboard").text
+    assert "Welcome back, Asha" in browser.get("/dashboard").text
     browser.post("/logout")
     assert browser.get("/dashboard", follow_redirects=False).headers["location"].startswith("/login")
     r = browser.c.post("/login", data={"email": "s@example.test", "password": "wrong"})
@@ -31,6 +31,19 @@ def test_csrf_required_for_signed_in_posts(browser, db):
     browser.register()
     assert browser.c.post("/practice/daily").status_code == 403
     assert browser.post("/practice/daily", follow_redirects=False).status_code == 303
+
+
+def test_pdf_only_papers_listed_without_start(browser, db):
+    from app.services import papers
+    playable = make_paper(db)
+    assert papers.load_library(db) == 31 and papers.load_library(db) == 0  # idempotent
+    browser.register()
+    page = browser.get("/practice").text
+    assert f"/practice/paper/{playable.id}" in page  # a loaded paper can be started
+    assert "JEE Advanced 2016 · Paper 1" in page and papers.adv_url(2016, 1) in page  # an old year: PDF link only
+    pdf_only = db.scalar(select(Paper).where(Paper.code == "adv-2016-p1"))
+    assert f"/practice/paper/{pdf_only.id}" not in page
+    assert 'href=""' not in page  # papers without a key (or the 2015 Main key without a paper) show no empty link
 
 
 def test_take_paper_save_submit_score(browser, db):

@@ -45,6 +45,14 @@ def test_parse_adv_answer(raw, parsed):
     assert papers.parse_adv_answer(raw) == parsed
 
 
+@pytest.mark.parametrize("note,parsed", [  # the 2024/2025 keys' "Answer: …" notes
+    (" Answer: (A), (C) ", {"sets": [[0, 2]]}), ("Answer: B, D", {"sets": [[1, 3]]}), ("Answer: 12", {"lo": 12.0, "hi": 12.0}),
+    ("Answer: [1.15 to 1.25]", {"lo": 1.15, "hi": 1.25}), ("Answer: (A) or (B)", {"sets": [[0], [1]]}),
+    ("Answer: 2 OR 3", None)])  # numeric either-or is not supported: the question is left out, never guessed
+def test_adv_answer_notes(note, parsed):
+    assert papers.parse_adv_answer(papers.norm_adv_answer(note)) == parsed
+
+
 def test_parse_main_paper_and_key():
     text = ("Mathematics Section A\nQuestion Number : 1 Question Id : 111111 Question Type : MCQ Option Shuffling : Yes "
             "Display Question Number : Yes\nOptions :\n900001. \n900002. \n900003. \n900004. \n"

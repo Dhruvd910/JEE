@@ -199,6 +199,36 @@ def adv_answers(solutions_text: str) -> list[dict[int, str]]:
     return [dict((int(n), a) for n, a in re.findall(r"Answer Q(\d+)\s*:\s*(.+)", b)) for b in split_subjects(solutions_text)]
 
 
+def norm_adv_answer(note: str) -> str:
+    """An answer note as the 2024/2025 keys write it ("(A), (C)", "12", "2 OR 3") in parse_adv_answer's form."""
+    raw = re.sub(r"(?i)^answer\s*:?\s*", "", " ".join(note.split()))
+    alts = []
+    for alt in re.split(r"\s+OR\s+", raw, flags=re.I):
+        letters = re.sub(r"[\s,()]", "", alt)
+        alts.append(letters if re.fullmatch(r"[ABCD]+", letters)
+                    else f"[{alt}]" if re.fullmatch(r"-?[\d.]+", alt) else alt)
+    return " or ".join(alts)
+
+
+def adv_answers_from_notes(pdf: Path) -> list[dict[int, str]]:
+    """2024/2025 final keys: the paper with one "Answer: …" note (a PDF annotation) under each question, and a
+    subject-name note where each subject starts. A dropped question's note ("MARKS TO ALL") keeps its slot, empty."""
+    subjects, out = ("Mathematics", "Physics", "Chemistry"), []
+    for page in pypdf.PdfReader(pdf).pages:
+        notes = []
+        for a in page.get("/Annots") or []:
+            a = a.get_object()
+            text = " ".join(str(a.get("/Contents", "")).split())
+            if a.get("/Subtype") == "/FreeText" and text and "KEY" not in text.upper():
+                notes.append((-float(a["/Rect"][3]), text))  # top of the page first
+        for _, text in sorted(notes):
+            if text in subjects:
+                out.append({})
+            elif out:
+                out[-1][len(out[-1]) + 1] = norm_adv_answer(text) if text.lower().startswith("answer") else ""
+    return out
+
+
 def crop_adv_questions(pdf: Path, out_dir: Path, scale: float = 2.0) -> list[list[str]]:
     """Image crops for each question, in paper order (subject blocks concatenated). A question that runs onto the
     next page gets one crop per page; a shared "Question Stem" is prepended to each question that uses it."""
@@ -229,7 +259,7 @@ def crop_adv_questions(pdf: Path, out_dir: Path, scale: float = 2.0) -> list[lis
 
     def crop(pi: int, y0: float, y1: float, name: str) -> str:
         if pi not in rendered:
-            rendered[pi] = doc[pi].render(scale=scale).to_pil()
+            rendered[pi] = doc[pi].render(scale=scale, draw_annots=False).to_pil()  # 2024/25 files carry "Answer: X" notes
         img = rendered[pi]
         box = (0, max(0, int((y0 - 6) * scale)), img.width, min(img.height, int((y1 - 4) * scale)))
         path = out_dir / f"{name}.png"
@@ -262,17 +292,21 @@ def crop_adv_questions(pdf: Path, out_dir: Path, scale: float = 2.0) -> list[lis
     return questions
 
 
-def load_adv_paper(db: Session, year: int, paper_no: int, paper_pdf: Path, solutions_pdf: Path) -> Paper:
+def load_adv_paper(db: Session, year: int, paper_no: int, paper_pdf: Path, solutions_pdf: Path,
+                   source_url: str = "", key_url: str = "") -> Paper:
     s = get_settings()
     code = f"adv-{year}-p{paper_no}"
     blocks = split_subjects(_text(paper_pdf))
     answers = adv_answers(_text(solutions_pdf))
+    if not any(answers):  # 2024/2025 keys carry the answers as notes on the paper, not as text
+        answers = adv_answers_from_notes(solutions_pdf)
     if len(blocks) != 3 or len(answers) != 3:
         raise ValueError(f"{paper_pdf.name}: expected 3 subjects, found {len(blocks)} papers / {len(answers)} keys")
     crops = crop_adv_questions(paper_pdf, s.live_dir / "q" / code)
     paper = _replace_paper(db, code, exam="advanced", year=year, duration_min=180,
                            title=f"JEE Advanced {year} · Paper {paper_no}",
-                           source_url=ADV + f"p{paper_no}_english.pdf", key_url=ADV + f"p{paper_no}_solutions_final.pdf")
+                           source_url=source_url or ADV + f"p{paper_no}_english.pdf",
+                           key_url=key_url or ADV + f"p{paper_no}_solutions_final.pdf")
     k = 0
     for block, key in zip(blocks, answers):
         subject = guess_subject(block)
@@ -298,6 +332,58 @@ def load_adv_paper(db: Session, year: int, paper_no: int, paper_pdf: Path, solut
     return paper
 
 
+PAST_QPS = "https://jeeadv.ac.in/past_qps/"
+
+
+def _wb(ts: str, url: str) -> str:
+    """The Internet Archive's exact copy of an official file the exam body has since taken down."""
+    return f"https://web.archive.org/web/{ts}id_/{url}"
+
+
+ADV_KEYS = {  # official final keys, where one was published (2016-18, 2020, 2021: none found)
+    (2015, 1): _wb("20150615231300", "http://jeeadv.iitb.ac.in:80/sites/default/files/JEE-Adv-2015_P1_Final-Key-Official-13-06-2015.pdf"),
+    (2015, 2): _wb("20150616002254", "http://jeeadv.iitb.ac.in:80/sites/default/files/JEE-Adv-2015_P2_Final-Key-Official-13-06-2015.pdf"),
+    (2019, 1): _wb("20190713224429", "https://jeeadv.ac.in/documents/KEY-2019-Final-13.06.2019-P1.pdf"),
+    (2019, 2): _wb("20190713011044", "https://jeeadv.ac.in/documents/KEY-2019-Final-13.06.2019-P2.pdf"),
+    (2022, 1): _wb("20220911075501", "https://jeeadv.ac.in/documents/jeeadv-2022-final-answer-keys.pdf"),
+    (2022, 2): _wb("20220911075501", "https://jeeadv.ac.in/documents/jeeadv-2022-final-answer-keys.pdf"),
+    (2023, 1): _wb("20230618114607", "https://jeeadv.ac.in/documents/Paper1_Final_Answer_Keys.pdf"),
+    (2023, 2): _wb("20230618114609", "https://jeeadv.ac.in/documents/Paper2_Final_Answer_Keys.pdf"),
+    (2024, 1): _wb("20240609043803", "https://jeeadv.ac.in/documents/Paper1_English_2024_With_Final_Keys.pdf"),
+    (2024, 2): _wb("20240609164114", "https://jeeadv.ac.in/documents/Paper2_English_2024_With_Final_Keys.pdf"),
+    (2025, 1): _wb("20250602022251", "https://jeeadv.ac.in/documents/p1_solutions_final.pdf"),
+    (2025, 2): _wb("20250602022251", "https://jeeadv.ac.in/documents/p2_solutions_final.pdf"),
+}
+ADV_PLAYABLE = {(2024, 1), (2025, 1), (2025, 2)}  # keys our parser reads; the other years are listed as PDFs only
+CBSE = "http://jeemain.nic.in:80/webinfo/PDF/"
+MAIN_OLD = [  # JEE Main in the CBSE years: (code, title, paper, key)
+    ("main-2015", "JEE Main 2015 · final answer key", "",
+     _wb("20150519", "http://jeemain.nic.in/webinfo/PDF/Final%20Answer%20Key%20JEE%202015.pdf")),
+    *[(f"main-2016-set{s}", f"JEE Main 2016 · 3 Apr · Set {s}", _wb("20160527", f"{CBSE}03-04-2016-Set{s}.pdf"), "")
+      for s in "EFGH"],
+    *[(f"main-2017-set{s}", f"JEE Main 2017 · Paper 1 · Set {s}", _wb("20170516", f"{CBSE}Paper01_RBS_English_Hindi_Set{s}.pdf"), "")
+      for s in "ABCD"],
+]
+
+
+def adv_url(year: int, n: int) -> str:
+    return PAST_QPS + (f"{year}_{n}.pdf" if year <= 2018 else f"{year}_{n}_English.pdf")
+
+
+def load_library(db: Session) -> int:
+    """Every other official paper we know of, as a PDF-only entry (no questions) in the previous-papers list."""
+    have, added = set(db.scalars(select(Paper.code))), 0
+    rows = [(f"adv-{y}-p{n}", "advanced", y, f"JEE Advanced {y} · Paper {n}", adv_url(y, n), ADV_KEYS.get((y, n), ""))
+            for y in range(2015, 2026) for n in (1, 2)]
+    rows += [(code, "main", int(code[5:9]), title, src, key) for code, title, src, key in MAIN_OLD]
+    for code, exam, year, title, src, key in rows:
+        if code not in have:
+            db.add(Paper(code=code, exam=exam, year=year, title=title, source_url=src, key_url=key))
+            added += 1
+    db.commit()
+    return added
+
+
 def load_all(db: Session) -> dict:
     """Load every official paper found under live/raw that is not loaded yet. Loaded papers are left alone:
     replacing one would delete students' answers to its questions."""
@@ -317,4 +403,11 @@ def load_all(db: Session) -> dict:
         if paper.exists() and sol.exists() and f"adv-2026-p{n}" not in have:
             p = load_adv_paper(db, 2026, n, paper, sol)
             done[p.code] = len(p.questions)
+    past = get_settings().live_dir / "papers" / "advanced"  # official files fetched into live/papers
+    for y, n in sorted(ADV_PLAYABLE):
+        paper, key = past / f"adv-{y}-p{n}.pdf", past / f"adv-{y}-p{n}-key.pdf"
+        if paper.exists() and key.exists() and f"adv-{y}-p{n}" not in have:
+            p = load_adv_paper(db, y, n, paper, key, source_url=adv_url(y, n), key_url=ADV_KEYS[(y, n)])
+            done[p.code] = len(p.questions)
+    done["pdf-only"] = load_library(db)
     return done
