@@ -1,53 +1,186 @@
 {% extends "base.html" %}
 {% block title %}{{ a.title }}{% endblock %}
 {% block content %}
-<div class="card card-glow z-20 mb-6 sm:sticky sm:top-20">
-  <div class="flex flex-wrap items-center gap-4">
+{# Exam room in the NTA computer-based-test style: one question at a time, a colour palette, Save & Next,
+   Mark for Review & Next, subject tabs, a clock with announcements, full screen, and a count of window switches. #}
+{% set TYPES = {'single': 'Single correct', 'multi': 'One or more correct', 'match': 'Matching list', 'num': 'Numerical value'} %}
+<div id="room" data-id="{{ a.id }}" data-begun="{{ '1' if a.begun_at else '' }}" data-remaining="{{ remaining }}">
+
+{# ── Instructions (shown until the student starts; the clock starts then) ── #}
+<div id="intro" class="card card-glow mx-auto max-w-3xl {{ 'hidden' if a.begun_at }}">
+  <p class="label">instructions · read before you start</p>
+  <h1 class="h1 mt-1">{{ a.title }}</h1>
+  <div class="mt-4 grid gap-3 sm:grid-cols-3">
+    <div class="card !p-3"><p class="label">duration</p><p class="num mt-1 text-2xl font-bold">{{ (remaining / 60)|round|int }} min</p></div>
+    <div class="card !p-3"><p class="label">questions</p><p class="num mt-1 text-2xl font-bold">{{ a.items|length }}</p></div>
+    <div class="card !p-3"><p class="label">maximum marks</p><p class="num mt-1 text-2xl font-bold">{{ a.max_score }}</p></div>
+  </div>
+  <div class="mt-4 grid gap-4 text-sm sm:grid-cols-2">
     <div>
-      <p class="label">{{ a.mode }} · {{ a.items|length }} questions · max {{ a.max_score }}</p>
-      <h1 class="text-lg font-semibold">{{ a.title }}</h1>
+      <p class="label mb-1">sections</p>
+      <ul class="space-y-0.5">{% for s, items in subjects %}<li>{{ s }} — <span class="num">{{ items|length }}</span> questions</li>{% endfor %}</ul>
+      <p class="label mb-1 mt-3">marking</p>
+      <ul class="space-y-0.5">{% for t, qs in a.items|map(attribute='question')|groupby('qtype') %}
+        <li>{{ TYPES[t] }}: <span class="num">+{{ qs[0].marks_full }}</span> right, {{ ('−' ~ qs[0].marks_neg ~ ' wrong') if qs[0].marks_neg else 'no negative marks' }}{{ ' (partial marks where the paper allows)' if t == 'multi' }}</li>{% endfor %}</ul>
     </div>
-    <div class="ml-auto flex items-center gap-4">
-      <div class="text-right"><p class="label">time left</p>
-        <span id="clock" class="num text-3xl font-bold grad-text" data-remaining="{{ remaining }}" role="timer" aria-live="off">--:--</span></div>
-      <button class="btn-primary" hx-post="/attempt/{{ a.id }}/submit" hx-confirm="Submit now? You cannot change answers afterwards.">Submit</button>
+    <div>
+      <p class="label mb-1">question palette</p>
+      <ul class="space-y-1.5">
+        <li class="flex items-center gap-2"><span class="pal">1</span> Not visited</li>
+        <li class="flex items-center gap-2"><span class="pal skip">2</span> Not answered</li>
+        <li class="flex items-center gap-2"><span class="pal done">3</span> Answered</li>
+        <li class="flex items-center gap-2"><span class="pal rev">4</span> Marked for review</li>
+        <li class="flex items-center gap-2"><span class="pal rev-done">5</span> Answered and marked for review (will be evaluated)</li>
+      </ul>
     </div>
   </div>
-  <details class="mt-3" open>
-    <summary class="cursor-pointer text-xs text-dim">question palette · <span class="text-emerald-300">green = answered</span></summary>
-    <nav class="mt-2 flex max-h-28 flex-wrap gap-1 overflow-y-auto" aria-label="Question palette">
-      {% for item in a.items %}<a href="#q{{ item.position }}" id="pal-{{ item.position }}" class="pal {{ 'done' if item.response }}">{{ item.position }}</a>{% endfor %}
-    </nav>
-  </details>
+  <ul class="mt-4 list-disc space-y-1 pl-5 text-sm text-dim">
+    <li>The clock starts when you press <b class="text-ink">Start test</b>. When it reaches zero, your answers are submitted automatically.</li>
+    <li>Your answer is saved as soon as you choose it. <b class="text-ink">Save &amp; Next</b> moves on; <b class="text-ink">Mark for Review &amp; Next</b> flags the question to come back to.</li>
+    <li>The test opens in full screen. Leaving the window (switching tabs or apps) is counted and shown on your result, as it would be noticed in the exam hall.</li>
+  </ul>
+  <form id="start" class="mt-5 flex flex-wrap items-center gap-4" hx-post="/attempt/{{ a.id }}/begin" hx-swap="none">
+    <label class="flex items-center gap-2 text-sm"><input type="checkbox" required class="accent-cyan-400"> I have read and understood the instructions.</label>
+    <button class="btn-primary ml-auto">Start test</button>
+  </form>
 </div>
 
-<div class="space-y-5">
-  {% set ns = namespace(subject='') %}
-  {% for item in a.items %}
-    {% if item.question.subject != ns.subject %}{% set ns.subject = item.question.subject %}
-      <h2 class="s-{{ ns.subject }} flex items-center gap-3 pt-4 text-lg font-semibold"><span class="h-px w-6 bg-current s-text"></span><span class="s-text">{{ ns.subject }}</span></h2>{% endif %}
-    <section id="q{{ item.position }}" class="card scroll-mt-64">
-      {% with review = false %}{% include "practice/_question.html" %}{% endwith %}
-    </section>
-  {% endfor %}
+{# ── The room ── #}
+<div id="exam" class="{{ 'hidden' if not a.begun_at }}">
+  <div class="card card-glow z-20 mb-4 !py-3 sm:sticky sm:top-20">
+    <div class="flex flex-wrap items-center gap-3">
+      <div class="min-w-0">
+        <p class="label">{{ a.mode }} · {{ a.items|length }} questions · max {{ a.max_score }}</p>
+        <h1 class="truncate font-semibold">{{ a.title }}</h1>
+      </div>
+      <div class="ml-auto flex items-center gap-3">
+        <button type="button" id="fs" class="btn !px-2.5 !py-1.5 text-xs" aria-label="Full screen" title="Full screen">⛶</button>
+        <div class="text-right"><p class="label">time left</p>
+          <span id="clock" class="num text-2xl font-bold grad-text" role="timer" aria-live="off">--:--</span></div>
+        <button type="button" id="submit" class="btn-primary">Submit</button>
+      </div>
+    </div>
+    <nav class="mt-3 flex flex-wrap gap-1.5" aria-label="Sections">
+      {% for s, items in subjects %}<button type="button" class="tab" data-go="{{ items[0].position }}" data-tab="{{ s }}">{{ s }}</button>{% endfor %}
+    </nav>
+  </div>
+
+  <div class="grid gap-4 lg:grid-cols-[1fr_17rem]">
+    <div class="min-w-0">
+      {% for item in a.items %}
+        <section class="card" data-q="{{ item.position }}" data-subject="{{ item.question.subject }}" hidden>
+          {% with review = false %}{% include "practice/_question.html" %}{% endwith %}
+        </section>
+      {% endfor %}
+      <div class="mt-4 flex flex-wrap gap-2">
+        <button type="button" class="btn" data-act="back">← Back</button>
+        <button type="button" class="btn" data-act="clear">Clear response</button>
+        <button type="button" class="btn ml-auto !border-violet-300/50 !text-violet-200" data-act="mark">Mark for Review &amp; Next</button>
+        <button type="button" class="btn-primary" data-act="next">Save &amp; Next →</button>
+      </div>
+    </div>
+
+    <aside class="card h-fit !p-4 lg:sticky lg:top-56" aria-label="Question palette">
+      {% for s, items in subjects %}
+        <p class="label mb-1.5 {{ 'mt-3' if not loop.first }}">{{ s }}</p>
+        <div class="flex flex-wrap gap-1.5">{% for item in items %}{% with oob = false %}{% include "practice/_pal.html" %}{% endwith %}{% endfor %}</div>
+      {% endfor %}
+      <ul class="mt-4 grid grid-cols-2 gap-1.5 text-[11px] text-dim">
+        <li class="flex items-center gap-1.5"><span class="pal !h-5 !w-5"></span>not visited</li>
+        <li class="flex items-center gap-1.5"><span class="pal skip !h-5 !w-5"></span>not answered</li>
+        <li class="flex items-center gap-1.5"><span class="pal done !h-5 !w-5"></span>answered</li>
+        <li class="flex items-center gap-1.5"><span class="pal rev !h-5 !w-5"></span>for review</li>
+        <li class="col-span-2 flex items-center gap-1.5"><span class="pal rev-done !h-5 !w-5"></span>answered + for review (counts)</li>
+      </ul>
+    </aside>
+  </div>
 </div>
-<div class="mt-8 flex justify-end">
-  <button class="btn-primary" hx-post="/attempt/{{ a.id }}/submit" hx-confirm="Submit now? You cannot change answers afterwards.">Submit test</button>
+<div id="toast" role="status" aria-live="polite" class="toast" hidden></div>
 </div>
 
 <script>
-  (() => {
-    const el = document.getElementById("clock");
-    const end = Date.now() + Number(el.dataset.remaining) * 1000;
-    let sent = false;
-    const tick = () => {
-      const s = Math.max(0, Math.round((end - Date.now()) / 1000));
-      const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), ss = s % 60;
-      el.textContent = (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(ss).padStart(2, "0");
-      if (s === 0 && !sent) { sent = true; htmx.ajax("POST", "/attempt/{{ a.id }}/submit", {}); }  // the server enforces the deadline too
-      else setTimeout(tick, 500);
-    };
-    tick();
-  })();
+(() => {
+  const room = document.getElementById("room"), A = room.dataset.id;
+  const qs = [...room.querySelectorAll("[data-q]")], clock = document.getElementById("clock"), toast = document.getElementById("toast");
+  const post = (url, values) => htmx.ajax("POST", url, {source: room, values: values || {}, swap: "none"});
+  const answered = (s) => document.getElementById("pal-" + s.dataset.q).matches(".done, .rev-done");
+  let cur = -1, t0 = Date.now(), end = 0, sent = false, away = 0;
+
+  const say = (msg) => { toast.textContent = msg; toast.hidden = false; clearTimeout(say.t); say.t = setTimeout(() => toast.hidden = true, 6000); };
+  const leave = (mark) => {  // record time on the question being left (and its review mark)
+    if (cur < 0) return;
+    const v = {secs: Math.round((Date.now() - t0) / 1000)};
+    if (mark !== undefined) v.mark = mark ? "1" : "0";
+    post(`/attempt/${A}/seen/${qs[cur].dataset.q}`, v);
+    t0 = Date.now();
+  };
+  const show = (i) => {
+    i = Math.max(0, Math.min(qs.length - 1, i));
+    qs.forEach((s, k) => s.hidden = k !== i);
+    cur = i; t0 = Date.now();
+    const s = qs[i];
+    room.querySelectorAll(".pal.cur").forEach(b => b.classList.remove("cur"));
+    document.getElementById("pal-" + s.dataset.q)?.classList.add("cur");
+    room.querySelectorAll("[data-tab]").forEach(b => b.classList.toggle("on", b.dataset.tab === s.dataset.subject));
+    history.replaceState(null, "", "#q" + s.dataset.q);
+    window.scrollTo({top: 0});  // the question starts just under the sticky header
+  };
+  const go = (i, mark) => { if (i === cur) return; leave(mark); show(i); };
+  const submit = () => { if (sent) return; sent = true; leave(); post(`/attempt/${A}/submit`); };
+
+  room.addEventListener("click", (e) => {
+    const g = e.target.closest("[data-go]"), act = e.target.closest("[data-act]")?.dataset.act;
+    const last = cur === qs.length - 1;
+    if (g) go(qs.findIndex(s => s.dataset.q === g.dataset.go));
+    else if (act === "back") go(cur - 1);
+    else if (act === "next") { if (last) { leave(false); say("That was the last question. Use the palette to go back, or Submit."); } else go(cur + 1, false); }
+    else if (act === "mark") { if (last) { leave(true); say("Marked for review."); } else go(cur + 1, true); }
+    else if (act === "clear") qs[cur].querySelector("[data-clear]")?.click();
+  });
+  // the palette button of the current question is replaced after each save; keep it highlighted
+  document.body.addEventListener("htmx:oobAfterSwap", () => { if (cur >= 0) document.getElementById("pal-" + qs[cur].dataset.q)?.classList.add("cur"); });
+  document.getElementById("submit").addEventListener("click", () => {
+    const left = qs.filter(s => !answered(s)).length;
+    if (confirm(`Submit now?${left ? ` ${left} question(s) are not answered.` : ""} You cannot change answers afterwards.`)) submit();
+  });
+  const fs = () => { try { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => {}); } catch (e) {} };
+  document.getElementById("fs").addEventListener("click", fs);
+
+  // the clock, with announcements like the invigilator's
+  const tick = () => {
+    const s = Math.max(0, Math.round((end - Date.now()) / 1000));
+    const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), ss = s % 60;
+    clock.textContent = (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(ss).padStart(2, "0");
+    clock.classList.toggle("late", s <= 300);
+    for (const mins of [30, 10, 5, 1]) if (s === mins * 60) say(`${mins} minute${mins > 1 ? "s" : ""} left.`);
+    if (s === 0) submit();  // the server enforces the deadline too
+    else setTimeout(tick, 1000);
+  };
+  const startClock = (secs) => { end = Date.now() + secs * 1000; tick(); };
+
+  document.addEventListener("visibilitychange", () => {
+    if (!room.dataset.begun || sent) return;
+    if (document.hidden) { away++; post(`/attempt/${A}/away`); }
+    else say(`You left the test window (${away} time${away > 1 ? "s" : ""}). This is shown on your result.`);
+  });
+
+  const enter = () => {
+    document.getElementById("intro").classList.add("hidden");
+    document.getElementById("exam").classList.remove("hidden");
+    const n = (location.hash.match(/^#q(\d+)$/) || [])[1];
+    const at = n ? qs.findIndex(s => s.dataset.q === n) : qs.findIndex(s => !answered(s));
+    show(at < 0 ? 0 : at);
+  };
+  if (room.dataset.begun) { enter(); startClock(Number(room.dataset.remaining)); }
+  else {
+    const form = document.getElementById("start");
+    form.addEventListener("submit", () => { if (!document.fullscreenElement) fs(); });  // needs the click itself
+    form.addEventListener("htmx:afterRequest", (e) => {
+      if (!e.detail.successful) return;
+      room.dataset.begun = "1";
+      enter(); startClock(Number(e.detail.xhr.responseText));
+    });
+  }
+})();
 </script>
 {% endblock %}

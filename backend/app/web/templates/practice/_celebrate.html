@@ -1,0 +1,41 @@
+{# Result celebration for every test: stars, XP earned, level progress, streak. Expects a, g, stars, prof. #}
+<section class="card card-glow mt-6 text-center" aria-label="Your rewards">
+  <div class="flex justify-center gap-3" role="img" aria-label="{{ stars }} of 3 stars">
+    {% for i in range(3) %}<span class="star {{ 'on' if i < stars }}" style="animation-delay: {{ i * 0.18 }}s" aria-hidden="true">★</span>{% endfor %}
+  </div>
+  <p class="mt-2 text-lg font-bold">{{ ['Keep going — every attempt counts!', 'Good start!', 'Great work!', 'Outstanding!'][stars] }}</p>
+  <div class="mt-3 flex flex-wrap justify-center gap-2">
+    <span class="xp-pill">+{{ g.xp }} XP</span>
+    {% if g.best >= 2 %}<span class="combo">best combo ×{{ g.best }}</span>{% endif %}
+    {% if a.mode == 'daily' %}<span class="chip">{{ g.right }}/{{ g.total }} right · {{ g.hearts }} ♥ left</span>{% endif %}
+    {% if prof.streak %}<span class="chip">🔥 {{ prof.streak }}-day streak</span>{% endif %}
+  </div>
+  <div class="mx-auto mt-4 max-w-md text-left">
+    <div class="flex justify-between text-xs text-dim"><span class="font-bold text-ink">Level {{ prof.level }}</span><span class="num">{{ prof.into }}/{{ prof.span }} XP to level {{ prof.level + 1 }}</span></div>
+    <div class="lvl-bar mt-1"><span style="width: {{ prof.pct }}%"></span></div>
+  </div>
+</section>
+{% if stars >= 2 %}
+<canvas id="confetti" class="pointer-events-none fixed inset-0 z-50 h-full w-full" aria-hidden="true"></canvas>
+<script>
+  (() => {  // a short burst of confetti, skipped for people who ask for less motion
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const c = document.getElementById("confetti"), x = c.getContext("2d");
+    c.width = innerWidth; c.height = innerHeight;
+    const colors = ["#22d3ee", "#a78bfa", "#fcd34d", "#34d399", "#f472b6"];
+    const bits = Array.from({ length: 140 }, () => ({ x: Math.random() * c.width, y: -20 - Math.random() * c.height * .5,
+      vx: (Math.random() - .5) * 3, vy: 2 + Math.random() * 3, r: Math.random() * 6.3, s: 5 + Math.random() * 6,
+      col: colors[Math.floor(Math.random() * colors.length)] }));
+    const t0 = performance.now();
+    const frame = (t) => {
+      x.clearRect(0, 0, c.width, c.height);
+      for (const b of bits) {
+        b.x += b.vx; b.y += b.vy; b.vy += .04; b.r += .1;
+        x.save(); x.translate(b.x, b.y); x.rotate(b.r); x.fillStyle = b.col; x.fillRect(-b.s / 2, -b.s / 4, b.s, b.s / 2); x.restore();
+      }
+      if (t - t0 < 3500) requestAnimationFrame(frame); else c.remove();
+    };
+    requestAnimationFrame(frame);
+  })();
+</script>
+{% endif %}

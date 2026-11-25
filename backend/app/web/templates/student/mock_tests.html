@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Mock log{% endblock %}
+{% block content %}
+<div id="mocks">
+<p class="label">mock log</p>
+<h1 class="h1 mt-1">Every outside mock, <span class="grad-text">one trend</span></h1>
+<p class="mt-2 max-w-2xl text-dim">Log the mocks you take at coaching or on other platforms to see whether you are improving. Tests you take here are
+  already on <a class="btn-ghost" href="/analytics">Analytics</a>.</p>
+
+{% if summary %}
+<div class="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+  <div class="card"><p class="label">latest</p><p class="num mt-2 text-4xl font-bold grad-text">{{ summary.latest }}%</p></div>
+  <div class="card"><p class="label">average · {{ summary.count }} mock{{ 's' if summary.count > 1 }}</p><p class="num mt-2 text-4xl font-bold">{{ summary.average }}%</p></div>
+  <div class="card"><p class="label">best</p><p class="num mt-2 text-4xl font-bold text-emerald-300">{{ summary.best }}%</p></div>
+  <div class="card"><p class="label">trend (last 3 vs 3 before)</p>
+    {% if summary.trend %}{% set t = summary.trend %}
+      <p class="num mt-2 text-4xl font-bold {{ {'up': 'text-emerald-300', 'down': 'text-rose-300', 'steady': 'text-sky-300'}[t.direction] }}">{{ {'up': '↗', 'down': '↘', 'steady': '→'}[t.direction] }} {{ '%+d'|format(t.diff) }}</p>
+    {% else %}<p class="mt-3 text-sm text-dim">Shows after 4 mocks.</p>{% endif %}</div>
+</div>
+
+<div class="card mt-4">
+  <h2 class="h2">Score % by mock</h2>
+  <svg viewBox="0 0 640 180" class="mt-3 w-full" role="img" aria-label="Score percentage for each logged mock, oldest first">
+    <defs><linearGradient id="ml" x1="0" x2="1"><stop offset="0" stop-color="#fcd34d"/><stop offset="1" stop-color="#a78bfa"/></linearGradient></defs>
+    {% for g in [0, 25, 50, 75, 100] %}{% set y = 156 - 132 * g / 100 %}
+      <line x1="24" x2="616" y1="{{ y }}" y2="{{ y }}" stroke="#94a3c4" stroke-opacity=".12"/>
+      <text x="2" y="{{ y + 3 }}" fill="#94a3c4" font-size="9" font-family="JetBrains Mono">{{ g }}</text>{% endfor %}
+    {% if points|length > 1 %}<polyline points="{% for x, y, t in points %}{{ x }},{{ y }} {% endfor %}" fill="none" stroke="url(#ml)" stroke-width="2.5" stroke-linejoin="round"/>{% endif %}
+    {% for x, y, t in points %}<circle cx="{{ x }}" cy="{{ y }}" r="4.5" fill="#0b1020" stroke="#fcd34d" stroke-width="2.5"><title>{{ t.title }} · {{ t.date }} — {{ t.score|round(1) }}/{{ t.max|round(1) }} ({{ t.pct }}%)</title></circle>{% endfor %}
+  </svg>
+  {% if summary.subjects %}
+  <div class="mt-4 flex flex-wrap gap-3 text-sm">
+    {% for s, v in summary.subjects.items() %}
+      <span class="s-{{ s }} chip"><span class="s-text">{{ s }}</span> avg {{ v.avg }} · {{ v.pct }}%</span>
+    {% endfor %}
+    {% if summary.weak %}<span class="text-dim">Weakest across mocks: <b class="text-ink">{{ summary.weak }}</b>. <a class="btn-ghost" href="/drill">Drill it</a></span>{% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="mt-6 grid gap-6 lg:grid-cols-[1fr_1.4fr]">
+  <form class="card card-glow space-y-4" hx-post="/mock-tests" hx-target="#mocks" hx-select="#mocks" hx-swap="outerHTML">
+    <h2 class="h2">Log a mock</h2>
+    {% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
+    <div class="grid gap-3 sm:grid-cols-2">
+      <label class="sm:col-span-2"><span class="field-label">test name</span><input class="field" name="name" maxlength="120" required placeholder="e.g. Full syllabus test 4"></label>
+      <label><span class="field-label">from (optional)</span><input class="field" name="provider" maxlength="120" placeholder="Coaching / platform"></label>
+      <label><span class="field-label">date</span><input class="field" type="date" name="test_date" max="{{ today }}" value="{{ today }}" required></label>
+      <label><span class="field-label">format</span><select class="field" name="exam"><option value="main">JEE Main</option><option value="advanced">JEE Advanced</option></select></label>
+      <label><span class="field-label">percentile (optional)</span><input class="field num" name="percentile" inputmode="decimal" placeholder="e.g. 97.5"></label>
+      <label><span class="field-label">your score</span><input class="field num" name="score" inputmode="decimal" required></label>
+      <label><span class="field-label">out of</span><input class="field num" name="max_score" inputmode="decimal" value="300" required></label>
+    </div>
+    <fieldset>
+      <legend class="field-label">by subject (optional)</legend>
+      <div class="grid grid-cols-3 gap-2">
+        {% for s in ['physics', 'chemistry', 'mathematics'] %}<input class="field num" name="{{ s }}" inputmode="decimal" placeholder="{{ s|title }}" aria-label="{{ s|title }} score">{% endfor %}
+      </div>
+    </fieldset>
+    <label><span class="field-label">notes (optional)</span><input class="field" name="notes" maxlength="1000" placeholder="What went wrong, what to change"></label>
+    <button class="btn-primary">{{ icon('list') }} Save</button>
+  </form>
+
+  <div class="card overflow-x-auto">
+    <h2 class="h2">Logged mocks</h2>
+    {% if logs %}
+    <table class="data mt-3">
+      <thead><tr><th>date</th><th>test</th><th class="text-right">score</th><th class="text-right">%</th><th class="text-right">P / C / M</th><th class="text-right">%ile</th><th></th></tr></thead>
+      <tbody>{% for m in logs|reverse %}
+        <tr><td class="num text-xs text-dim">{{ m.test_date }}</td>
+          <td>{{ m.name }}<span class="text-xs text-dim">{{ ' · ' ~ m.provider if m.provider }} · {{ 'Adv' if m.exam == 'advanced' else 'Main' }}</span>
+            {% if m.notes %}<p class="text-xs text-dim">{{ m.notes }}</p>{% endif %}</td>
+          <td class="num text-right">{{ m.score|round(1)|replace('.0', '') }}/{{ m.max_score|round(1)|replace('.0', '') }}</td>
+          <td class="num text-right">{{ (100 * m.score / m.max_score)|round|int }}</td>
+          <td class="num text-right text-dim">{% for v in [m.physics, m.chemistry, m.mathematics] %}{{ (v|round(1)|replace('.0', '')) if v is not none else '–' }}{{ ' / ' if not loop.last }}{% endfor %}</td>
+          <td class="num text-right">{{ m.percentile if m.percentile is not none else '—' }}</td>
+          <td><button class="btn-ghost-sm" hx-post="/mock-tests/{{ m.id }}/delete" hx-target="#mocks" hx-select="#mocks" hx-swap="outerHTML"
+                      hx-confirm="Delete {{ m.name }}?" aria-label="Delete {{ m.name }}">delete</button></td></tr>
+      {% endfor %}</tbody>
+    </table>
+    {% else %}<p class="mt-3 text-sm text-dim">Nothing logged yet. Your first mock appears here and on the chart.</p>{% endif %}
+  </div>
+</div>
+</div>
+{% endblock %}

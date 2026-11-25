@@ -1,0 +1,16 @@
+{# Daily-quiz game status. Expects a (attempt), g (game.run), HEARTS; `now` = position being played (optional). #}
+<div id="gamebar" class="card card-glow" {{ 'hx-swap-oob=true' if oob }}>
+  <div class="flex flex-wrap items-center gap-3">
+    <div class="flex gap-1" role="img" aria-label="{{ g.hearts }} of {{ HEARTS }} lives left">
+      {% for i in range(HEARTS) %}<span class="heart {{ 'lost' if i >= g.hearts }}" aria-hidden="true">♥</span>{% endfor %}
+    </div>
+    {% if g.combo >= 2 %}<span class="combo">combo ×{{ g.combo }}</span>{% endif %}
+    <span class="xp-pill ml-auto">⚡ {{ g.xp }} XP</span>
+  </div>
+  <div class="mt-3 flex gap-1.5" aria-label="Progress: {{ g.answered }} of {{ g.total }} answered">
+    {% for i in a.items %}
+      {% set m = i.marks if i.marks is not none else none %}
+      <span class="gdot {{ 'now' if now == i.position else ('right' if i.response and m == i.question.marks_full else 'part' if i.response and m and m > 0 else 'wrong' if i.response else '') }}"></span>
+    {% endfor %}
+  </div>
+</div>

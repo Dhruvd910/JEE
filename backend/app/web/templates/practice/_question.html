@@ -8,6 +8,7 @@
   <span>{{ {'single': 'Single correct', 'multi': 'One or more correct', 'match': 'Matching list', 'num': 'Numerical value'}[q.qtype] }}</span>
   <span class="num">+{{ q.marks_full }} / {{ '−' ~ q.marks_neg if q.marks_neg else 'no negative' }}</span>
   {% if q.paper %}<span>· {{ q.paper.title }}{{ ' · Q' ~ q.number if main }}</span>{% elif q.origin == 'variant' %}<span class="chip-vio">AI-checked version</span>{% endif %}
+  {% if review and item.seconds %}<span class="num">· {{ item.seconds }}s</span>{% endif %}{% if review and item.marked %}<span class="chip-vio">marked for review</span>{% endif %}
   <span class="ml-auto">{% with qid = q.id, on = q.id in bm %}{% include "_bookmark.html" %}{% endwith %}</span>
 </div>
 {% if q.images %}
@@ -50,7 +51,7 @@
   {% endif %}
   <div class="mt-2 flex items-center gap-4 text-[11px]">
     <span id="st-{{ item.position }}" class="text-dim">{{ 'saved' if picked else 'not answered' }}</span>
-    <button type="button" class="btn-ghost" hx-post="/attempt/{{ a.id }}/q/{{ item.position }}" hx-vals='{"clear": "1"}'
+    <button type="button" data-clear class="btn-ghost" hx-post="/attempt/{{ a.id }}/q/{{ item.position }}" hx-vals='{"clear": "1"}'
             hx-target="#st-{{ item.position }}" onclick="this.form.querySelectorAll('input').forEach(e => { e.checked = false; if (e.type !== 'radio' && e.type !== 'checkbox') e.value = '' })">clear</button>
   </div>
 </form>

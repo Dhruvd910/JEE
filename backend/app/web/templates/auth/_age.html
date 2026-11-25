@@ -1,0 +1,14 @@
+{# The age questions, shared by every sign-up form. Expects form. #}
+<fieldset class="space-y-2">
+  <legend class="field-label">are you under 18?</legend>
+  <div class="grid grid-cols-2 gap-2">
+    <label class="opt"><input type="radio" name="minor" value="no" required {{ 'checked' if form.minor == 'no' }}><span class="text-sm">No, 18 or over</span></label>
+    <label class="opt"><input type="radio" name="minor" value="yes" {{ 'checked' if form.minor == 'yes' }}><span class="text-sm">Yes, under 18</span></label>
+  </div>
+</fieldset>
+<label class="block"><span class="field-label">parent / guardian's email (if under 18)</span>
+  <input class="field" type="email" name="guardian_email" value="{{ form.guardian_email or '' }}" maxlength="254" autocomplete="off"></label>
+<p class="text-[11px] text-dim">Under 18? We email your parent or guardian a link. Until they agree, the site keeps nothing about you, and
+  the account is deleted after a week if nobody answers.</p>
+<label class="flex items-start gap-2 text-sm"><input type="checkbox" name="privacy" required class="mt-1 accent-cyan-400" {{ 'checked' if form.privacy }}>
+  <span>I have read the <a class="btn-ghost" href="/privacy" target="_blank">privacy notice</a>.</span></label>

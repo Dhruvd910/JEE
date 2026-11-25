@@ -10,7 +10,7 @@ from sqlalchemy import func, or_, select
 
 from app import admin_bridge
 from app.config import get_settings
-from app.models import (Attempt, AttemptItem, Cutoff, Institute, Paper, Question, Role, SyllabusUnit, Transcript,
+from app.models import (Attempt, AttemptItem, Cutoff, Institute, Paper, InstituteReview, Question, QuestionReport, Role, SyllabusUnit, Transcript,
                         User)
 from app.security import NO_PASSWORD, verify_password
 from app.services import exams, study
@@ -74,7 +74,9 @@ def overview(db) -> dict:
          else "ADMIN_BRIDGE_SECRET not set: admins sign in on each site"),
         ("ok" if s.env != "production" or s.cookie_secure else "todo", "Secure cookies in production", s.env),
     ]
-    return {"cards": cards, "feed": feed[:14], "checks": checks}
+    reviews = db.scalars(select(InstituteReview).where(InstituteReview.status == "pending")
+                         .order_by(InstituteReview.created_at).limit(50)).all()
+    return {"cards": cards, "feed": feed[:14], "checks": checks, "reviews": reviews}
 
 
 def students(db, q: str) -> dict:
@@ -96,7 +98,9 @@ def question_bank(db) -> dict:
     variants = db.execute(select(Question.exam, Question.subject, Question.qtype, func.count()).where(
         Question.origin == "variant", Question.status == "served").group_by(Question.exam, Question.subject, Question.qtype)).all()
     t = dict(db.execute(select(Transcript.agreed, func.count()).group_by(Transcript.agreed)).all())
-    return {"papers": papers, "have": {(e, s, q): n for e, s, q, n in variants}, "transcripts": t, "counts": exams.counts(db),
+    reports = db.scalars(select(QuestionReport).where(QuestionReport.status == "open")
+                         .order_by(QuestionReport.created_at.desc()).limit(100)).all()
+    return {"reports": reports, "papers": papers, "have": {(e, s, q): n for e, s, q, n in variants}, "transcripts": t, "counts": exams.counts(db),
             "mocks": exams.MOCKS, "short": {e: exams.mock_shortfall(db, User(id=0), e) for e in exams.MOCKS}}
 
 
@@ -149,6 +153,24 @@ def admin_toggle(qid: int, p: Page = Depends(admin_page)):
     label = "served · hide" if q.status == "served" else "hidden · unhide"
     return HTMLResponse(f'<button class="btn-ghost-sm" hx-post="/admin/questions/{q.id}/toggle" hx-swap="outerHTML">'
                         f'{label}</button>')
+
+
+@router.post("/admin/reports/{rid}/resolve")
+def admin_resolve(rid: int, p: Page = Depends(admin_page)):
+    r = p.db.get(QuestionReport, rid) or _404()
+    r.status = "resolved"
+    p.db.commit()
+    return HTMLResponse('<span class="text-xs text-emerald-300">resolved</span>')
+
+
+@router.post("/admin/reviews/{rid}/{action}")
+def admin_review(rid: int, action: str, p: Page = Depends(admin_page)):
+    r = p.db.get(InstituteReview, rid) or _404()
+    if action not in ("approve", "reject"):
+        _404()
+    r.status = "approved" if action == "approve" else "rejected"
+    p.db.commit()
+    return HTMLResponse(f'<span class="text-xs {"text-emerald-300" if action == "approve" else "text-rose-300"}">{r.status}</span>')
 
 
 # ---------------------------------------------------------------- admin sign-in and the NEET | JEE switch

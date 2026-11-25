@@ -68,6 +68,73 @@ def test_take_paper_save_submit_score(browser, db):
     assert r.headers.get("hx-redirect") == f"/attempt/{aid}/result"
 
 
+def test_exam_room_instructions_palette_time_and_focus(browser, db):
+    paper = make_paper(db)
+    browser.register()
+    aid = int(browser.post(f"/practice/paper/{paper.id}", follow_redirects=False).headers["location"].split("/")[-1])
+    page = browser.get(f"/attempt/{aid}").text
+    assert "I have read and understood the instructions" in page and 'data-begun=""' in page
+    assert "Mark for Review &amp; Next" in page and 'id="pal-1"' in page
+    from datetime import timedelta
+    a = db.get(Attempt, aid)
+    a.started_at, a.deadline = exams.utcnow() - timedelta(minutes=20), exams.utcnow() + timedelta(minutes=160)
+    db.commit()  # 20 minutes on the instructions: the full 180 still start at Start
+    secs = int(browser.post(f"/attempt/{aid}/begin").text)
+    assert 170 * 60 < secs <= 180 * 60
+    assert 'data-begun="1"' in browser.get(f"/attempt/{aid}").text
+    # moving off Q1 unanswered after 40 s: red; marking Q2 for review: violet; answering + marking Q3: violet with the dot
+    assert 'class="pal skip"' in browser.post(f"/attempt/{aid}/seen/1", data={"secs": "40"}).text
+    assert 'class="pal rev"' in browser.post(f"/attempt/{aid}/seen/2", data={"secs": "5", "mark": "1"}).text
+    browser.post(f"/attempt/{aid}/q/3", data={"r": "1"})
+    assert 'class="pal rev-done"' in browser.post(f"/attempt/{aid}/seen/3", data={"secs": "99999", "mark": "1"}).text
+    assert 'class="pal done"' in browser.post(f"/attempt/{aid}/seen/3", data={"secs": "0", "mark": "0"}).text
+    browser.post(f"/attempt/{aid}/away")
+    browser.post(f"/attempt/{aid}/away")
+    db.expire_all()
+    a = db.get(Attempt, aid)
+    assert a.focus_lost == 2 and [i.seconds for i in a.items[:3]] == [40, 5, 3600]  # one move adds at most an hour
+    browser.post(f"/attempt/{aid}/submit")
+    res = browser.get(f"/attempt/{aid}/result").text
+    assert "left the test window 2 times" in res and "40s" in res
+    assert browser.post(f"/attempt/{aid}/seen/1", data={"secs": "5"}).headers.get("hx-redirect") == f"/attempt/{aid}/result"
+
+
+def test_scorecard_notes_types_filters_and_reports(browser, db):
+    paper = make_paper(db)
+    browser.register()
+    aid = int(browser.post(f"/practice/paper/{paper.id}", follow_redirects=False).headers["location"].split("/")[-1])
+    browser.post(f"/attempt/{aid}/begin")
+    browser.post(f"/attempt/{aid}/q/1", data={"r": "1"})  # Physics MCQ right
+    browser.post(f"/attempt/{aid}/q/3", data={"r": "0"})  # Chemistry MCQ wrong
+    browser.post(f"/attempt/{aid}/seen/4", data={"secs": "30", "mark": "1"})  # Chemistry numerical marked, left blank
+    browser.post(f"/attempt/{aid}/submit")
+    res = browser.get(f"/attempt/{aid}/result").text
+    assert "What to work on" in res and "You lost 1 mark to wrong answers" in res
+    assert "Chemistry was your lowest-scoring subject" in res and "Marked for review but never answered: Q4" in res
+    assert "By question type" in res and "numerical" in res
+    wrong = browser.get(f"/attempt/{aid}/result?filter=wrong").text
+    review = wrong[wrong.index('id="review"'):]
+    assert ">Q3<" in review and ">Q1<" not in review
+    marked = browser.get(f"/attempt/{aid}/result?filter=marked").text
+    assert ">Q4<" in marked[marked.index('id="review"'):]
+    # report a problem: once per open question, shown to the admin, who can resolve it
+    r = browser.post(f"/attempt/{aid}/report/3", data={"reason": "wrong_key", "note": "key says B, should be C"})
+    assert "sent for checking" in r.text
+    browser.post(f"/attempt/{aid}/report/3", data={"reason": "wrong_key"})
+    from app.models import QuestionReport
+    reports = db.scalars(select(QuestionReport)).all()
+    assert len(reports) == 1 and reports[0].note == "key says B, should be C"
+    db.query(User).filter_by(email="s@example.test").update({"role": Role.admin})
+    db.commit()
+    bank = browser.get("/admin?tab=questions").text
+    assert "Answer key wrong" in bank and "key says B, should be C" in bank
+    browser.post(f"/admin/reports/{reports[0].id}/resolve")
+    assert "(0 open)" in browser.get("/admin?tab=questions").text
+    other = Browser()
+    other.register(email="o@example.test")
+    assert other.post(f"/attempt/{aid}/report/3", data={"reason": "other"}).status_code == 404
+
+
 def test_deadline_enforced_on_server(browser, db):
     paper = make_paper(db)
     browser.register()
@@ -123,9 +190,38 @@ def test_daily_quiz_same_for_everyone_once_per_day(db):
     d = date(2026, 11, 12)
     a1, a2 = exams.start_daily(db, u1, d), exams.start_daily(db, u2, d)
     assert [i.question_id for i in a1.items] == [i.question_id for i in a2.items]
-    assert len(a1.items) == 9 and exams.start_daily(db, u1, d).id == a1.id
+    assert len(a1.items) == 5 and exams.start_daily(db, u1, d).id == a1.id
     exams.finish(db, a1)
     assert exams.daily_streak(db, u1, d) == 1 and exams.daily_streak(db, u2, d) == 0
+
+
+def test_daily_quiz_game_lives_combo_xp(browser, db):
+    from app.services import game
+    make_paper(db, n_per_subject=4)
+    browser.register()
+    aid = int(browser.post("/practice/daily", follow_redirects=False).headers["location"].split("/")[-1])
+    a = db.get(Attempt, aid)
+    right = lambda it: {"v": "7"} if it.question.qtype == "num" else {"r": "1"}
+    wrong = lambda it: {"v": "3"} if it.question.qtype == "num" else {"r": "0"}
+    assert "Lock in" in browser.get(f"/attempt/{aid}").text
+    items = sorted(a.items, key=lambda i: i.position)
+    r = browser.post(f"/attempt/{aid}/play/1", data=right(items[0])).text
+    assert "Correct!" in r and "+10 XP" in r
+    r = browser.post(f"/attempt/{aid}/play/2", data=right(items[1])).text
+    assert "+20 XP" in r and "combo ×2" in r  # the second in a row counts double
+    assert browser.post(f"/attempt/{aid}/play/1", data=wrong(items[0])).headers.get("hx-redirect") == f"/attempt/{aid}"  # locked
+    assert "Pick an answer" in browser.post(f"/attempt/{aid}/play/3", data={}).text
+    for pos in (3, 4):
+        assert "Not quite" in browser.post(f"/attempt/{aid}/play/{pos}", data=wrong(items[pos - 1])).text
+    r = browser.post(f"/attempt/{aid}/play/5", data=wrong(items[4])).text
+    assert "Game over" in r  # third wrong answer: out of lives
+    db.expire_all()
+    a = db.get(Attempt, aid)
+    g = game.run(a)
+    assert a.submitted_at and g["hearts"] == 0 and g["xp"] == 10 + 20 + game.FINISH_BONUS and a.score == 8 - 3
+    page = browser.get(f"/attempt/{aid}/result").text
+    assert "+50 XP" in page and "Level 1" in page and "★" in page
+    assert game.level_of(100)["level"] == 2 and game.level_of(399)["level"] == 2 and game.level_of(400)["level"] == 3
 
 
 def test_progress_by_subject(db):

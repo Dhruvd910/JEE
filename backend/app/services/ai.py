@@ -41,10 +41,33 @@ def client() -> httpx.Client:
                                               "X-Title": "JEE Workbench"})
 
 
+_budget_lock = threading.Lock()
+
+
+def spend_call() -> None:
+    """Count one background call against today's budget (UTC day, like OpenRouter's free pool). The pool's 1000 calls
+    a day are shared with NEET Compass and the assistant, so background jobs stop at BACKGROUND_DAILY_CALLS and leave
+    the rest for students' questions. Raises DailyLimit when today's budget is used."""
+    s = get_settings()
+    path = s.live_dir / "free_calls.json"
+    today = time.strftime("%Y-%m-%d", time.gmtime())
+    with _budget_lock:
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            data = {}
+        used = data.get(today, 0)
+        if used >= s.background_daily_calls:
+            raise DailyLimit(f"background budget of {s.background_daily_calls} calls used today")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({today: used + 1}), encoding="utf-8")
+
+
 def ask(c: httpx.Client, model: str, content, temperature: float = 0.0) -> dict | None:
     """One call; returns the first JSON object in the reply, or None. Retries once when the free pool is busy."""
     for wait in (0, 30):
         time.sleep(wait)
+        spend_call()
         try:
             r = c.post(URL, json={"model": model, "temperature": temperature, "max_tokens": 6000,
                                   "messages": [{"role": "user", "content": content}]})

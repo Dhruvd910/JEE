@@ -3,7 +3,7 @@ from datetime import date, timedelta
 
 from app.models import Attempt, ChoiceItem, Question, SyllabusUnit, User
 from app.services import exams, study
-from tests.conftest import make_colleges, make_paper
+from tests.conftest import Browser, make_colleges, make_paper
 
 SYLLABUS_TEXT = """MATHEMATICS UNIT 1: SETS, RELATIONS AND FUNCTIONS:
 text
@@ -78,6 +78,57 @@ def test_drill_filters_and_unseen_first(db):
     assert study.start_drill(db, u, None, None, None, 3, "bookmarks") is None
 
 
+def test_weak_area_test_and_quick_tests(browser, db):
+    paper = make_paper(db, n_per_subject=6)  # per subject 3 single + 3 numerical
+    make_paper(db, n_per_subject=6, code="main-test-s2")  # unseen questions for the drill
+    browser.register()
+    assert "Unlocks after a few tests" in browser.get("/drill").text
+    assert "answer at least 3 questions" in browser.post("/drill", data={"source": "weak", "count": "15"}).text
+    u = db.query(User).one()
+    a = exams.start_paper(db, u, paper)
+    for i in a.items:  # Physics single all wrong, Physics numerical all right, the rest blank
+        if i.question.subject == "Physics":
+            i.response = [0] if i.question.qtype == "single" else [7.0]
+    exams.finish(db, a)
+    weak = study.weak_areas(db, u)
+    assert weak == [("Physics", "single", 0), ("Physics", "num", 100)]
+    page = browser.get("/drill").text
+    assert "Physics single correct (0%)" in page and "Mini test" in page and "Mathematics test" in page
+    d = study.start_drill(db, u, None, None, None, 15, "weak")
+    assert d.title == "Drill · My weak areas" and len(d.items) == 6
+    assert {(i.question.subject, i.question.qtype) for i in d.items} <= {("Physics", "single"), ("Physics", "num")}
+    r = browser.post("/drill", data={"source": "unseen", "count": "25", "subject": "Chemistry"}, follow_redirects=False)
+    assert r.headers["location"].startswith("/attempt/")
+
+
+def test_mock_log_trend_and_validation(browser, db):
+    from app.models import MockLog
+    browser.register()
+    assert "Nothing logged yet" in browser.get("/mock-tests").text
+    today = date.today()
+    for i, (score, phy) in enumerate([(120, 30), (130, 35), (140, 40), (180, 60), (190, 65), (200, 70)]):
+        r = browser.post("/mock-tests", data={"name": f"FST {i + 1}", "provider": "Coaching", "exam": "main", "score": str(score),
+                                              "max_score": "300", "test_date": (today - timedelta(days=30 - i)).isoformat(),
+                                              "physics": str(phy), "chemistry": "50", "mathematics": str(score - phy - 50)})
+    assert "FST 6" in r.text and "Shows after 4 mocks" not in r.text
+    s = study.mock_summary(study.mock_logs(db, db.query(User).one()))
+    assert (s["latest"], s["best"], s["count"], s["trend"]["direction"]) == (67, 67, 6, "up")
+    assert s["weak"] == "Physics" and s["subjects"]["Physics"]["avg"] == 50.0
+    bad = [{"name": "", "score": "1", "max_score": "300"}, {"name": "x", "score": "400", "max_score": "300"},
+           {"name": "x", "score": "abc", "max_score": "300"}, {"name": "x", "score": "1", "max_score": "300", "percentile": "120"},
+           {"name": "x", "score": "1", "max_score": "300", "test_date": (today + timedelta(days=1)).isoformat()}]
+    for f in bad:
+        f.setdefault("test_date", today.isoformat())
+        assert 'role="alert"' in browser.post("/mock-tests", data=f).text
+    assert db.query(MockLog).count() == 6
+    mid = db.query(MockLog).first().id
+    other = Browser()
+    other.register(email="o@example.test")
+    assert other.post(f"/mock-tests/{mid}/delete").status_code == 404
+    browser.post(f"/mock-tests/{mid}/delete")
+    assert db.query(MockLog).count() == 5
+
+
 def test_analytics_and_dashboard(browser, db):
     paper = make_paper(db)
     browser.register()
@@ -137,3 +188,32 @@ def test_new_pages_need_sign_in(browser):
     for url in ("/drill", "/mistakes", "/analytics", "/syllabus", "/choices"):
         assert browser.get(url, follow_redirects=False).status_code == 303
     assert browser.get("/compare").status_code == 200 and browser.get("/").status_code == 200
+
+
+def test_saved_colleges_and_moderated_reviews(browser, db):
+    from app.models import Institute, InstituteReview, Role
+    make_colleges(db)
+    iit, nit = db.query(Institute).order_by(Institute.id).all()[:2]
+    assert "Sign in</a> to write a review" in browser.get(f"/colleges/{iit.id}").text  # public page, no form
+    browser.register()
+    assert "☆ Save" in browser.get(f"/colleges/{iit.id}").text
+    assert "★ Saved" in browser.post(f"/colleges/{iit.id}/save").text
+    browser.post(f"/colleges/{nit.id}/save")
+    dash = browser.get("/dashboard").text
+    assert "Indian Institute of Technology Delhi" in dash and f"/compare?ids={iit.id},{nit.id}" in dash
+    assert "☆ Save" in browser.post(f"/colleges/{nit.id}/save").text  # toggles off
+    # reviews: validated, one per student, hidden until approved, escaped
+    assert "30 to 2,000 characters" in browser.post(f"/colleges/{iit.id}/review", data={"rating": "5", "body": "short"}).text
+    assert "30 to 2,000 characters" in browser.post(f"/colleges/{iit.id}/review", data={"rating": "9", "body": "x" * 40}).text
+    text = "Great labs and teachers <script>alert(1)</script>, hostel food could be better."
+    assert "once an admin" in browser.post(f"/colleges/{iit.id}/review", data={"rating": "4", "relation": "student", "body": text}).text
+    assert "already reviewed" in browser.post(f"/colleges/{iit.id}/review", data={"rating": "1", "body": "y" * 40}).text
+    page = browser.get(f"/colleges/{iit.id}").text
+    assert "Great labs" not in page and "waiting for an admin" in page
+    db.query(User).filter_by(email="s@example.test").update({"role": Role.admin})
+    db.commit()
+    assert "Great labs" in browser.get("/admin").text
+    rid = db.query(InstituteReview).one().id
+    assert "approved" in browser.post(f"/admin/reviews/{rid}/approve").text
+    page = browser.get(f"/colleges/{iit.id}").text
+    assert "Great labs" in page and "&lt;script&gt;" in page and "<script>alert(1)" not in page and "4.0" in page

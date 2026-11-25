@@ -21,6 +21,11 @@ NO_PASSWORD = "no-password"  # accounts created by the NEET | JEE admin switch: 
 
 
 def client_ip(request: Request) -> str:
+    if get_settings().trust_proxy_headers:
+        # Visitors can write X-Forwarded-For themselves; only Cloudflare's own header (or the last hop) is real.
+        fwd = request.headers.get("cf-connecting-ip") or request.headers.get("x-forwarded-for")
+        if fwd:
+            return fwd.split(",")[-1].strip()
     return request.client.host if request.client else "unknown"
 
 

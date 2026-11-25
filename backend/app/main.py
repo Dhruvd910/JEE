@@ -10,11 +10,15 @@ from app.security import client_ip, csrf_ok, rate_limiter
 from app.web import core
 from app.web.routes import router
 from app.web.routes_admin import router as admin_router
+from app.web.routes_auth import router as auth_router
 
 settings = get_settings()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 app = FastAPI(title="JEE Workbench", docs_url=None, redoc_url=None, openapi_url=None)
-CSRF_EXEMPT = {"/login", "/register", "/admin/login"}  # they start a new session; a stale cookie must not block them
+# They start a new session, so a stale cookie must not block them; they also get the stricter sign-in rate limit.
+# The phone and Google steps are tied to a short signed SameSite=Lax cookie, and guardian consent to a one-time token.
+CSRF_EXEMPT = {"/login", "/register", "/admin/login", "/login/phone", "/login/phone/signup", "/login/phone/resend",
+               "/login/phone/verify", "/register/google", "/guardian-consent"}
 
 
 @app.middleware("http")
@@ -40,6 +44,13 @@ async def login_required(request: Request, exc: core.LoginRequired):
     return RedirectResponse(url, status_code=303)
 
 
+@app.exception_handler(core.ConsentRequired)
+async def consent_required(request: Request, exc: core.ConsentRequired):
+    if request.headers.get("hx-request"):
+        return HTMLResponse("", headers={"HX-Redirect": "/account/consent"})
+    return RedirectResponse("/account/consent", status_code=303)
+
+
 @app.exception_handler(core.AdminRequired)
 async def admin_required(request: Request, exc: core.AdminRequired):
     # Signed in, but not as an admin: offer the admin sign-in (a student account stays signed in).
@@ -51,3 +62,4 @@ async def admin_required(request: Request, exc: core.AdminRequired):
 app.mount("/static", StaticFiles(directory=core.WEB_DIR / "static"), name="static")
 app.include_router(admin_router)
 app.include_router(router)
+app.include_router(auth_router)

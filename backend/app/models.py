@@ -20,7 +20,7 @@ class Role(str, enum.Enum):
 class User(Base):
     __tablename__ = "users"
     id: Mapped[int] = mapped_column(primary_key=True)
-    email: Mapped[str] = mapped_column(String(254), unique=True, index=True)
+    email: Mapped[str | None] = mapped_column(String(254), unique=True, index=True)  # empty for phone-only accounts
     name: Mapped[str] = mapped_column(String(120))
     password_hash: Mapped[str] = mapped_column(String(255))
     role: Mapped[Role] = mapped_column(Enum(Role), default=Role.student)
@@ -29,9 +29,26 @@ class User(Base):
     gender: Mapped[str | None] = mapped_column(String(10))
     home_state: Mapped[str | None] = mapped_column(String(60))
     target_date: Mapped[date | None] = mapped_column(Date)  # the student's exam date, for the countdown
+    class_level: Mapped[str | None] = mapped_column(String(10))  # 11 / 12 / dropper, for the study plan
+    study_hours: Mapped[int | None] = mapped_column(Integer)  # hours a day, for the study plan
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     login_count: Mapped[int] = mapped_column(Integer, default=0)
+    # Other ways to sign in.
+    phone: Mapped[str | None] = mapped_column(String(20), unique=True, index=True)
+    tekurious_user_id: Mapped[str | None] = mapped_column(String(64), unique=True)
+    google_sub: Mapped[str | None] = mapped_column(String(64), unique=True, index=True)
+    # Under-18s: nothing is stored about them until a parent/guardian consents through an emailed link.
+    # "ask" = an account from before this question existed; asked once at the next visit.
+    is_minor: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+    guardian_consent_status: Mapped[str] = mapped_column(String(20), default="not_required",
+                                                         server_default="not_required")  # pending / verified / declined
+    guardian_email: Mapped[str | None] = mapped_column(String(254))
+    guardian_token_hash: Mapped[str | None] = mapped_column(String(64), index=True)
+    guardian_token_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    guardian_consent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    guardian_consent_by: Mapped[str | None] = mapped_column(String(200))  # name and relationship, as given
+    privacy_accepted: Mapped[str | None] = mapped_column(String(20))  # privacy notice version accepted
 
 
 class Paper(Base):
@@ -103,6 +120,9 @@ class Attempt(Base):
     submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     score: Mapped[int | None] = mapped_column(Integer)
     max_score: Mapped[int] = mapped_column(Integer, default=0)
+    # Exam room: the clock starts when the student leaves the instructions screen; times they left the window.
+    begun_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    focus_lost: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     items: Mapped[list["AttemptItem"]] = relationship(back_populates="attempt", order_by="AttemptItem.position",
                                                       cascade="all, delete-orphan")
 
@@ -118,8 +138,45 @@ class AttemptItem(Base):
     # Copied at submission so later bank edits never change a past result.
     answer: Mapped[dict | None] = mapped_column(JSON)
     marks: Mapped[int | None] = mapped_column(Integer)
+    # Exam-room palette state and time spent on this question.
+    visited: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+    marked: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+    seconds: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     attempt: Mapped[Attempt] = relationship(back_populates="items")
     question: Mapped[Question] = relationship()
+
+
+class QuestionReport(Base):
+    """A student's "Report a problem" on a question (wrong key, unclear image...), for the admin to check."""
+    __tablename__ = "question_reports"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    question_id: Mapped[int] = mapped_column(ForeignKey("questions.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    reason: Mapped[str] = mapped_column(String(20))
+    note: Mapped[str] = mapped_column(String(1000), default="")
+    status: Mapped[str] = mapped_column(String(10), default="open", index=True)  # open / resolved
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    question: Mapped[Question] = relationship()
+    user: Mapped[User] = relationship()
+
+
+class MockLog(Base):
+    """A mock test taken outside this site (coaching institute, other platforms), logged by the student."""
+    __tablename__ = "mock_logs"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(120))
+    provider: Mapped[str] = mapped_column(String(120), default="")
+    exam: Mapped[str] = mapped_column(String(10), default="main")  # main / advanced
+    test_date: Mapped[date] = mapped_column(Date)
+    score: Mapped[float] = mapped_column(Float)
+    max_score: Mapped[float] = mapped_column(Float)
+    physics: Mapped[float | None] = mapped_column(Float)
+    chemistry: Mapped[float | None] = mapped_column(Float)
+    mathematics: Mapped[float | None] = mapped_column(Float)
+    percentile: Mapped[float | None] = mapped_column(Float)
+    notes: Mapped[str] = mapped_column(String(1000), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
 class Institute(Base):
@@ -190,3 +247,54 @@ class ChoiceItem(Base):
     program: Mapped[str] = mapped_column(String(250))
     position: Mapped[int] = mapped_column(Integer)
     institute: Mapped[Institute] = relationship()
+
+
+class Chat(Base):
+    """One conversation with the AI assistant."""
+    __tablename__ = "chats"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    title: Mapped[str] = mapped_column(String(120), default="New chat")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+    messages: Mapped[list["ChatMessage"]] = relationship(back_populates="chat", order_by="ChatMessage.id",
+                                                         cascade="all, delete-orphan")
+
+
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    chat_id: Mapped[int] = mapped_column(ForeignKey("chats.id", ondelete="CASCADE"), index=True)
+    role: Mapped[str] = mapped_column(String(10))  # user / assistant
+    content: Mapped[str] = mapped_column(Text)
+    sources: Mapped[list] = mapped_column(JSON, default=list)  # names of the data looked up for this answer
+    model: Mapped[str | None] = mapped_column(String(120))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    chat: Mapped[Chat] = relationship(back_populates="messages")
+
+
+class SavedInstitute(Base):
+    """A student's shortlist of institutes."""
+    __tablename__ = "saved_institutes"
+    __table_args__ = (UniqueConstraint("user_id", "institute_id"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    institute_id: Mapped[int] = mapped_column(ForeignKey("institutes.id", ondelete="CASCADE"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    institute: Mapped[Institute] = relationship()
+
+
+class InstituteReview(Base):
+    """A student's review of an institute; shown only after an admin approves it."""
+    __tablename__ = "institute_reviews"
+    __table_args__ = (UniqueConstraint("user_id", "institute_id"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    institute_id: Mapped[int] = mapped_column(ForeignKey("institutes.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    rating: Mapped[int] = mapped_column(Integer)  # 1-5
+    relation: Mapped[str] = mapped_column(String(12), default="aspirant")  # student / alumnus / aspirant / parent
+    body: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(10), default="pending", index=True)  # pending / approved / rejected
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    institute: Mapped[Institute] = relationship()
+    user: Mapped[User] = relationship()

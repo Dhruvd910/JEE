@@ -4,13 +4,17 @@
 {% block content %}
 <p class="label">result</p>
 <h1 class="h1 mt-1">{{ a.title }}</h1>
+{% include "practice/_celebrate.html" %}
 
 {% set pct = (100 * a.score / a.max_score)|round|int if a.max_score else 0 %}
 <div class="mt-6 grid gap-4 md:grid-cols-[auto_1fr]">
   <div class="card card-glow flex items-center gap-5">
     <div class="ring !h-28 !w-28" style="--p: {{ [pct, 0]|max }}"><span class="num text-2xl font-bold">{{ pct }}%</span></div>
     <div><p class="label">score</p><p class="num text-4xl font-bold grad-text">{{ a.score }}<span class="text-xl text-dim">/{{ a.max_score }}</span></p>
-      <p class="mt-1 text-xs text-dim">submitted {{ a.submitted_at|when }}</p></div>
+      <p class="mt-1 text-xs text-dim">submitted {{ a.submitted_at|when }}</p>
+      {% set used = a.items|sum(attribute='seconds') %}
+      {% if used %}<p class="text-xs text-dim">time on questions {{ ((used / 60)|round|int ~ ' min') if used >= 60 else (used ~ 's') }} · {{ (used / a.items|length)|round|int }}s per question</p>{% endif %}
+      {% if a.focus_lost %}<p class="text-xs text-amber-300">left the test window {{ a.focus_lost }} time{{ 's' if a.focus_lost > 1 }}</p>{% endif %}</div>
   </div>
   <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
     {% for label, n, cls in [('correct', a.items|selectattr('marks', 'gt', 0)|list|length, 'text-emerald-300'),
@@ -33,16 +37,59 @@
     </tbody>
   </table>
 </div>
+{% if ins.notes %}
+<section class="card mt-4 border-amber-300/25">
+  <h2 class="h2">What to work on</h2>
+  <ul class="mt-2 list-disc space-y-1.5 pl-5 text-sm">{% for n in ins.notes %}<li>{{ n }}</li>{% endfor %}</ul>
+</section>
+{% endif %}
+
+<div class="card mt-4 overflow-x-auto">
+  <h2 class="h2 mb-2">By question type</h2>
+  <table class="data">
+    <thead><tr><th>subject</th><th>type</th><th class="text-right">score</th><th class="text-right">right</th><th class="text-right">wrong</th><th class="text-right">blank</th><th class="text-right">accuracy</th><th class="text-right">avg time</th></tr></thead>
+    <tbody>
+    {% for r in ins.rows %}
+      <tr class="s-{{ r.subject }}"><td><span class="s-text">{{ r.subject }}</span></td><td>{{ QTYPES[r.qtype] }} <span class="text-dim">· {{ r.n }}</span></td>
+        <td class="num text-right">{{ r.score }}/{{ r.max }}</td><td class="num text-right text-emerald-300">{{ r.correct }}{{ ' +' ~ r.partial ~ ' part' if r.partial }}</td>
+        <td class="num text-right text-rose-300">{{ r.wrong }}</td><td class="num text-right text-dim">{{ r.blank }}</td>
+        <td class="num text-right {{ 'text-rose-300' if r.accuracy is not none and r.accuracy < 50 }}">{{ (r.accuracy ~ '%') if r.accuracy is not none else '—' }}</td>
+        <td class="num text-right text-dim">{{ (r.avg_secs ~ 's') if r.avg_secs else '—' }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <p class="mt-2 text-[11px] text-dim">Accuracy counts only the questions you answered. Official papers are not tagged by chapter, so results are shown by question type.</p>
+</div>
+
 <div class="mt-4 flex flex-wrap gap-3">
   <a href="/mistakes" class="btn">{{ icon('alert') }} Mistake notebook</a>
   <form method="post" action="/drill"><input type="hidden" name="source" value="mistakes"><input type="hidden" name="count" value="10">
     <button class="btn">{{ icon('zap') }} Retest my mistakes</button></form>
 </div>
 
-<h2 class="h2 mt-10">Review</h2>
-<div class="mt-4 space-y-4">
-  {% for item in a.items %}
-    <section class="card">{% with review = true %}{% include "practice/_question.html" %}{% endwith %}</section>
-  {% endfor %}
-</div>
+<section id="review" class="mt-10 scroll-mt-24">
+  <div class="flex flex-wrap items-center gap-2">
+    <h2 class="h2 mr-2">Review</h2>
+    {% for f in ["all", "wrong", "blank", "marked", "correct"] %}
+      <a href="/attempt/{{ a.id }}/result?filter={{ f }}#review" hx-get="/attempt/{{ a.id }}/result?filter={{ f }}" hx-target="#review" hx-select="#review"
+         hx-swap="outerHTML" hx-push-url="false" aria-pressed="{{ 'true' if flt == f else 'false' }}"
+         class="tab {{ 'on' if flt == f }}">{{ {'all': 'All', 'wrong': 'Wrong', 'blank': 'Not answered', 'marked': 'Marked', 'correct': 'Correct'}[f] }} <span class="num text-dim">{{ counts[f] }}</span></a>
+    {% endfor %}
+  </div>
+  <div class="mt-4 space-y-4">
+    {% if not shown %}<p class="text-sm text-dim">Nothing here.</p>{% endif %}
+    {% for item in shown %}
+      <section class="card">{% with review = true %}{% include "practice/_question.html" %}{% endwith %}
+        <details class="mt-2">
+          <summary class="btn-ghost cursor-pointer">Report a problem</summary>
+          <form class="mt-2 flex flex-wrap items-end gap-2" hx-post="/attempt/{{ a.id }}/report/{{ item.position }}" hx-target="this" hx-swap="outerHTML">
+            <select name="reason" class="field !w-auto !py-1 text-xs" aria-label="Problem">{% for k, l in REASONS %}<option value="{{ k }}">{{ l }}</option>{% endfor %}</select>
+            <input name="note" class="field !w-64 !py-1 text-xs" maxlength="1000" placeholder="What's wrong? (optional)" aria-label="Details">
+            <button class="btn !py-1 text-xs">Send</button>
+          </form>
+        </details>
+      </section>
+    {% endfor %}
+  </div>
+</section>
 {% endblock %}

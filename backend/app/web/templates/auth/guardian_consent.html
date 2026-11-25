@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Parent / guardian consent{% endblock %}
+{% block content %}
+<div class="card card-glow mx-auto mt-6 max-w-xl !p-8">
+  <p class="label">parent / guardian consent</p>
+  {% if done %}
+    <h1 class="h1 mt-2">{{ "Thank you: consent recorded" if done == "verified" else "Recorded: consent declined" }}</h1>
+    <p class="mt-2 text-sm text-dim">{{ "The student can now use JEE Workbench." if done == "verified"
+      else "The account can't be used and will be deleted, with anything in it." }} You can close this page.</p>
+  {% elif not info %}
+    <h1 class="h1 mt-2">This link is invalid or has expired</h1>
+    <p class="mt-2 text-sm text-dim">Ask the student to sign in and send a new one.</p>
+  {% else %}
+    <h1 class="h1 mt-2">{{ info.student }} wants to use JEE Workbench</h1>
+    <p class="mt-2 text-sm text-dim">You were named as their parent or guardian. Because they are under 18, nothing about them is kept until you agree.</p>
+    <h2 class="mt-5 font-semibold">What the site keeps if you agree</h2>
+    <ul class="mt-2 list-disc space-y-1 pl-5 text-sm text-dim">
+      <li>Their name and email (or phone), and when they sign in.</li>
+      <li>Their test answers, scores, study plan, mock-test log, saved colleges and choice list.</li>
+      <li>Optional details they enter for the college predictor (category, gender, home state).</li>
+      <li>Questions they ask the AI assistant, which are sent to free AI models to get an answer.</li>
+    </ul>
+    <p class="mt-2 text-sm text-dim">Full details: <a class="btn-ghost" href="/privacy" target="_blank">privacy notice</a>. The student can delete the account at any time.</p>
+    {% if error %}<p class="alert mt-4" role="alert">{{ error }}</p>{% endif %}
+    <form method="post" action="/guardian-consent" hx-boost="false" class="mt-5 space-y-4">
+      <input type="hidden" name="token" value="{{ token }}">
+      <div class="grid gap-3 sm:grid-cols-2">
+        <label><span class="field-label">your name</span><input class="field" name="guardian_name" required maxlength="120"></label>
+        <label><span class="field-label">relationship</span><input class="field" name="relationship" required maxlength="40" placeholder="Mother, father, guardian"></label>
+      </div>
+      <label class="flex items-start gap-2 text-sm"><input type="checkbox" name="confirm" class="mt-1 accent-cyan-400">
+        <span>I am this student's parent or legal guardian.</span></label>
+      <div class="flex flex-wrap gap-2">
+        <button class="btn-primary" name="decision" value="approve">I agree</button>
+        <button class="btn" name="decision" value="decline">I don't agree</button>
+      </div>
+    </form>
+  {% endif %}
+</div>
+{% endblock %}

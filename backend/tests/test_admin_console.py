@@ -86,3 +86,21 @@ def test_create_admin_command(db, monkeypatch):
     assert maintenance.create_admin(db, "Head@x.test") == "head@x.test is now an admin."
     r = Browser().c.post("/admin/login", data={"email": "head@x.test", "password": "long-enough-pass-1"}, follow_redirects=False)
     assert r.headers["location"] == "/admin"
+
+
+def test_live_settings_refuse_the_development_secret(monkeypatch):
+    import pytest
+    from app.config import Settings
+    with pytest.raises(ValueError):
+        Settings(env="staging")
+    assert Settings(env="staging", jwt_secret="x" * 40).env == "staging"
+
+
+def test_client_ip_uses_cloudflare_header_only_when_trusted(monkeypatch):
+    from types import SimpleNamespace
+    from app.security import client_ip
+    req = SimpleNamespace(headers={"cf-connecting-ip": "203.0.113.9"}, client=SimpleNamespace(host="127.0.0.1"))
+    monkeypatch.setattr(get_settings(), "trust_proxy_headers", False)
+    assert client_ip(req) == "127.0.0.1"
+    monkeypatch.setattr(get_settings(), "trust_proxy_headers", True)
+    assert client_ip(req) == "203.0.113.9"

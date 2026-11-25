@@ -1,0 +1,24 @@
+{# Google and phone sign-in, shown only when their keys are set. Expects next (optional). #}
+{% set so = signin_options() %}
+{% if so.google or so.phone %}
+<div class="my-6 flex items-center gap-3 text-xs text-dim"><span class="h-px flex-1 bg-white/10"></span>or<span class="h-px flex-1 bg-white/10"></span></div>
+{% if so.google %}
+<a class="btn w-full justify-center" hx-boost="false" href="/auth/google?next={{ (next or '/dashboard')|urlencode }}">
+  <svg viewBox="0 0 24 24" class="h-4 w-4" aria-hidden="true"><path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.4h6.5a5.6 5.6 0 0 1-2.4 3.6v3h3.9c2.3-2.1 3.5-5.2 3.5-8.7z"/><path fill="#34A853" d="M12 24c3.2 0 6-1.1 7.9-2.9l-3.9-3c-1.1.7-2.4 1.2-4 1.2-3.1 0-5.7-2.1-6.6-4.9h-4v3.1A12 12 0 0 0 12 24z"/><path fill="#FBBC05" d="M5.4 14.4a7.2 7.2 0 0 1 0-4.7V6.6h-4a12 12 0 0 0 0 10.9z"/><path fill="#EA4335" d="M12 4.8c1.7 0 3.3.6 4.5 1.8l3.4-3.4A12 12 0 0 0 1.4 6.6l4 3.1C6.3 6.9 8.9 4.8 12 4.8z"/></svg>
+  Continue with Google</a>
+{% endif %}
+{% if so.phone %}
+<form method="post" action="/login/phone" hx-boost="false" class="mt-3 space-y-2">
+  <input type="hidden" name="next" value="{{ next or '/dashboard' }}">
+  {% if phone_error %}<p class="alert" role="alert">{{ phone_error }}</p>{% endif %}
+  <span class="field-label">mobile number (18+)</span>
+  <div class="flex gap-2">
+    <select class="field !w-28" name="dial" aria-label="Country code">
+      {% for c in so.countries or [{'dialCode': '+91', 'name': 'India'}] %}<option value="{{ c.dialCode }}" title="{{ c.name }}" {{ 'selected' if c.dialCode == '+91' }}>{{ c.dialCode }}</option>{% endfor %}
+    </select>
+    <input class="field" name="number" inputmode="tel" autocomplete="tel-national" value="{{ number or '' }}" required placeholder="98765 43210" aria-label="Mobile number">
+  </div>
+  <button class="btn w-full justify-center">Text me a code</button>
+</form>
+{% endif %}
+{% endif %}

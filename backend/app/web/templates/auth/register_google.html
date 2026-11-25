@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Finish sign-up{% endblock %}
+{% block content %}
+<div class="card card-glow mx-auto mt-6 max-w-md !p-8">
+  <p class="label">signing up with google · {{ g.email }}</p>
+  <h1 class="h1 mt-2">One more step</h1>
+  <p class="mt-2 text-sm text-dim">Google told us your email. We still need to know whether you are under 18.</p>
+  {% if error %}<p class="alert mt-4" role="alert">{{ error }}</p>{% endif %}
+  <form method="post" action="/register/google" hx-boost="false" class="mt-5 space-y-4">
+    <label class="block"><span class="field-label">your name</span>
+      <input class="field" name="name" value="{{ form.name or '' }}" required maxlength="120" autocomplete="name"></label>
+    {% include "auth/_age.html" %}
+    <button class="btn-primary w-full">Create account</button>
+  </form>
+</div>
+{% endblock %}

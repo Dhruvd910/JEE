@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}New account{% endblock %}
+{% block content %}
+<div class="card card-glow mx-auto mt-6 max-w-md !p-8">
+  <p class="label">new account · {{ phone }}</p>
+  <h1 class="h1 mt-2">Welcome to <span class="grad-text">JEE Workbench</span></h1>
+  {% if error %}<p class="alert mt-4" role="alert">{{ error }}</p>{% endif %}
+  <form method="post" action="/login/phone/signup" hx-boost="false" class="mt-5 space-y-4">
+    <label class="block"><span class="field-label">your name</span>
+      <input class="field" name="name" value="{{ form.name or '' }}" required maxlength="120" autocomplete="name"></label>
+    <label class="flex items-start gap-2 text-sm"><input type="checkbox" name="adult" class="mt-1 accent-cyan-400" {{ 'checked' if form.adult }}>
+      <span>I am 18 or over. <span class="text-dim">(Under 18? Use email or Google sign-up so a parent can give consent.)</span></span></label>
+    <label class="flex items-start gap-2 text-sm"><input type="checkbox" name="terms" class="mt-1 accent-cyan-400" {{ 'checked' if form.terms }}>
+      <span>I have read the <a class="btn-ghost" href="/privacy" target="_blank">privacy notice</a>.</span></label>
+    <button class="btn-primary w-full">Text me a code</button>
+  </form>
+  <p class="mt-4 text-sm"><a class="btn-ghost" href="/register">Under 18? Create an account with email</a></p>
+</div>
+{% endblock %}

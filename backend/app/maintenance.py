@@ -80,6 +80,7 @@ def main(argv=None) -> None:
     a = sub.add_parser("make-admin")
     a.add_argument("email")
     sub.add_parser("stats")
+    sub.add_parser("purge-minors")
     args = p.parse_args(argv)
     with SessionLocal() as db:
         if args.cmd == "load-data":
@@ -105,6 +106,9 @@ def main(argv=None) -> None:
             user.role = Role.admin
             db.commit()
             print("admin:", user.email)
+        elif args.cmd == "purge-minors":
+            from app.services.accounts import purge_unconsented
+            print("removed under-18 accounts without consent:", purge_unconsented(db))
         elif args.cmd == "stats":
             from app.services.exams import counts
             print(json.dumps({"/".join(k): v for k, v in counts(db).items()}, indent=1))

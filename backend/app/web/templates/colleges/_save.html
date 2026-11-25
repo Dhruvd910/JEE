@@ -1,0 +1,2 @@
+<button class="btn {{ '!border-amber-300/60 !text-amber-200' if saved }}" hx-post="/colleges/{{ inst.id }}/save" hx-swap="outerHTML"
+        aria-pressed="{{ 'true' if saved else 'false' }}">{{ '★ Saved' if saved else '☆ Save' }}</button>

@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}AI Assistant{% endblock %}
+{% block content %}
+<div id="assistant" class="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
+  {# saved chats #}
+  <aside class="min-w-0 space-y-3">
+    <a href="/assistant" class="btn-primary w-full">{{ icon('plus') }} New chat</a>
+    <form method="get" action="/assistant" hx-get="/assistant" hx-trigger="input changed delay:300ms from:input, submit" hx-target="#assistant" hx-select="#assistant" hx-swap="outerHTML">
+      {% if chat %}<input type="hidden" name="chat" value="{{ chat.id }}">{% endif %}
+      <input class="field !py-2 text-sm" name="q" value="{{ q }}" placeholder="Search your chats" aria-label="Search your chats">
+    </form>
+    <div class="max-h-[60vh] space-y-3 overflow-y-auto">
+      {% for g, items in groups %}
+        <div>
+          <p class="label px-1 pb-1">{{ g }}</p>
+          <ul class="space-y-1">
+            {% for c in items %}
+              <li class="group flex items-center gap-1 rounded-xl {{ 'bg-gradient-to-r from-cyan-400/15 to-violet-400/15 ring-1 ring-cyan-300/30' if chat and chat.id == c.id else 'hover:bg-white/5' }}">
+                <a href="/assistant?chat={{ c.id }}" class="min-w-0 flex-1 truncate px-3 py-2 text-sm" title="{{ c.title }}">{{ c.title }}</a>
+                <form method="post" action="/assistant/{{ c.id }}/delete" class="opacity-60 group-hover:opacity-100">
+                  <button class="btn-ghost-sm !px-2" aria-label="Delete chat: {{ c.title }}" title="Delete chat">{{ icon('trash', 'h-3.5 w-3.5') }}</button></form>
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% else %}<p class="px-1 text-sm text-dim">{{ 'No chats match.' if q else 'No chats yet. Your conversations are saved here.' }}</p>{% endfor %}
+    </div>
+    <a href="/dashboard" class="btn-ghost block px-1 pt-2">← Back to dashboard</a>
+  </aside>
+
+  {# conversation #}
+  <section class="card flex min-h-[75vh] min-w-0 flex-col !p-0">
+    <header class="flex items-center gap-3 border-b border-white/10 px-5 py-4">
+      <img src="/static/mascot/avatar-circle.png" alt="" aria-hidden="true" class="h-10 w-10 rounded-full ring-2 ring-cyan-300/50">
+      <div class="min-w-0">
+        <h1 class="truncate font-semibold">{{ chat.title if chat else 'JEE AI Assistant' }}</h1>
+        <p class="text-xs text-dim">Answers from official JoSAA, NIRF, NTA and JEE Advanced data, and your own progress.</p>
+      </div>
+      <label class="ml-auto flex items-center gap-2 text-xs text-dim" title="Read answers aloud">
+        <input type="checkbox" id="read-aloud" class="accent-cyan-400"> {{ icon('speaker', 'h-4 w-4') }}<span class="hidden sm:inline">Read aloud</span></label>
+    </header>
+
+    <div id="thread" class="flex-1 space-y-4 overflow-y-auto px-5 py-5" aria-live="polite">
+      {% if chat %}
+        {% for m in chat.messages %}
+          {% if m.role == 'user' %}
+            <div class="flex justify-end"><p class="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-gradient-to-r from-cyan-400/20 to-violet-400/20 px-4 py-2.5 text-sm ring-1 ring-cyan-300/25">{{ m.content }}</p></div>
+          {% else %}
+            <div class="flex gap-3">
+              <img src="/static/mascot/avatar-circle.png" alt="" aria-hidden="true" class="h-8 w-8 shrink-0 rounded-full ring-1 ring-cyan-300/40">
+              <div class="max-w-[90%] min-w-0">
+                <div class="answer space-y-1 rounded-2xl rounded-tl-md bg-white/[.04] px-4 py-3 text-sm leading-relaxed ring-1 ring-white/10" {% if loop.last %}data-last-answer{% endif %}>{{ m.content|chat_text }}</div>
+                {% if m.sources %}<p class="mt-1.5 flex flex-wrap gap-1">{% for s in m.sources %}<span class="chip">{{ s }}</span>{% endfor %}</p>{% endif %}
+              </div>
+            </div>
+          {% endif %}
+        {% endfor %}
+      {% else %}
+        <div class="mx-auto max-w-xl py-8 text-center">
+          <img id="mascot" src="/static/mascot/idle.webp" alt="Assistant mascot, waiting for your question" style="height: 126px; width: auto" class="mx-auto select-none drop-shadow-xl" draggable="false">
+          <h2 class="mt-3 text-2xl font-bold">How can I help you <span class="grad-text">today?</span></h2>
+          <p id="mascot-line" class="mt-2 text-sm text-dim">Ask me anything about JEE: ranks, colleges, counselling, your study plan or your own scores.</p>
+          <p class="mt-1 text-xs text-dim">Cutoffs and colleges come from JoSAA and NIRF; marking from NTA and the IITs. Type, or press the mic and speak.</p>
+          <div class="mt-6 grid gap-2 text-left sm:grid-cols-2">
+            {% for s in SUGGESTIONS %}
+              <form method="post" action="/assistant/send" hx-target="#assistant" hx-select="#assistant" hx-swap="outerHTML" class="suggest">
+                <input type="hidden" name="content" value="{{ s }}"><button class="opt w-full !items-start text-left text-sm">{{ s }}</button></form>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+      <div id="pending" class="hidden items-center gap-3"><img src="/static/mascot/thinking.webp" alt="Assistant mascot, thinking" class="h-14 w-auto select-none" draggable="false">
+        <p class="rounded-2xl bg-white/[.04] px-4 py-3 text-sm text-dim ring-1 ring-white/10">Looking that up<span class="animate-pulse">…</span></p></div>
+    </div>
+
+    {% if error %}<p class="alert mx-5 mb-2" role="alert">{{ error }}</p>{% endif %}
+    <form id="ask" method="post" action="/assistant/send" hx-target="#assistant" hx-select="#assistant" hx-swap="outerHTML"
+          class="flex items-end gap-2 border-t border-white/10 p-4">
+      <input type="hidden" name="chat_id" value="{{ chat.id if chat else '' }}">
+      <input type="hidden" name="voice" value="0">
+      <button type="button" id="mic" class="btn !px-3" aria-label="Speak your question" title="Speak (English / Hindi)">{{ icon('mic', 'h-5 w-5') }}</button>
+      <textarea name="content" rows="1" class="field max-h-40 min-h-[44px] flex-1 resize-none" placeholder="Ask anything — e.g. Which NITs for rank 18,000?" required maxlength="2000" aria-label="Your question"></textarea>
+      <button class="btn-primary !px-4" aria-label="Send">{{ icon('send', 'h-5 w-5') }}</button>
+    </form>
+    <p class="px-5 pb-3 text-[11px] text-dim">AI can make mistakes. Check important details on the Colleges and Predictor pages or the official sites.</p>
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Browser-only helpers: Enter to send, "thinking" bubble, voice input and read-aloud (the browser's own speech
+  // services, so no audio reaches the server). The server stores every message.
+  (function () {
+    const $ = (s) => document.querySelector(s);
+    const thread = () => $("#thread");
+    function scroll() { const t = thread(); if (t) t.scrollTop = t.scrollHeight; }
+    // The mascot acts out what the assistant is doing, as on NEET Compass (a still frame when motion is reduced).
+    const MASCOT = { idle: "idle.webp", listening: "listen.webp", thinking: "thinking.webp", talking: "talking.webp" };
+    const LINE = { idle: "Ask me anything about JEE: ranks, colleges, counselling, your study plan or your own scores.",
+      listening: "I'm listening…", thinking: "Let me look that up…", talking: "Here's what I found." };
+    const still = matchMedia("(prefers-reduced-motion: reduce)").matches || navigator.connection?.saveData;
+    function mascot(state) {
+      const img = $("#mascot");
+      if (img) {
+        const src = "/static/mascot/" + (still ? "idle-still.png" : MASCOT[state]);
+        const pre = new Image();  // keep the current frame until the next animation has loaded
+        pre.onload = () => { img.src = src; };
+        pre.src = src;
+        img.alt = "Assistant mascot, " + (state === "idle" ? "waiting for your question" : state);
+      }
+      const line = $("#mascot-line");
+      if (line) line.textContent = LINE[state];
+    }
+    function speakLast() {
+      const a = document.querySelector("[data-last-answer]");
+      if (!a || !("speechSynthesis" in window)) return;
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(a.innerText.replace(/[*•#|]/g, ""));
+      u.lang = /[ऀ-ॿ]/.test(a.innerText) ? "hi-IN" : "en-IN";
+      u.onend = u.onerror = () => mascot("idle");
+      mascot("talking");
+      speechSynthesis.speak(u);
+    }
+    function wire() {
+      scroll();
+      const box = $("#read-aloud");
+      try { box.checked = localStorage.getItem("readAloud") === "1"; } catch (e) {}
+      box?.addEventListener("change", () => { try { localStorage.setItem("readAloud", box.checked ? "1" : "0"); } catch (e) {} });
+      const ta = $("#ask textarea");
+      ta?.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("#ask").requestSubmit(); } });
+      ta?.focus();
+      const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const mic = $("#mic");
+      if (!Rec) { mic?.setAttribute("hidden", ""); return; }
+      mic.onclick = () => {
+        const r = new Rec(); r.lang = "en-IN"; r.interimResults = false;
+        mic.classList.add("!border-cyan-300", "animate-pulse");
+        mascot("listening");
+        r.onresult = (e) => { ta.value = e.results[0][0].transcript; $("#ask [name=voice]").value = "1"; $("#ask").requestSubmit(); };
+        r.onend = () => { mic.classList.remove("!border-cyan-300", "animate-pulse"); mascot("idle"); };
+        r.start();
+      };
+      {% if speak %}speakLast();{% endif %}
+    }
+    document.addEventListener("htmx:beforeRequest", (e) => {
+      if (!e.target.closest("#ask, .suggest")) return;
+      const q = (e.target.querySelector("[name=content]") || {}).value;
+      if (q) { const b = document.createElement("div"); b.className = "flex justify-end";
+        b.innerHTML = '<p class="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-gradient-to-r from-cyan-400/20 to-violet-400/20 px-4 py-2.5 text-sm ring-1 ring-cyan-300/25"></p>';
+        b.firstChild.textContent = q; $("#pending").before(b); }
+      mascot("thinking");
+      $("#pending").classList.replace("hidden", "flex"); scroll();
+    });
+    document.addEventListener("htmx:afterSettle", (e) => {
+      if (!e.detail.target || e.detail.target.id !== "assistant") return;
+      wire();
+      try { if (localStorage.getItem("readAloud") === "1") speakLast(); } catch (err) {}
+    });
+    wire();
+  })();
+</script>
+{% endblock %}

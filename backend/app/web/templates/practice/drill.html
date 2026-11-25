@@ -7,11 +7,34 @@
 <p class="mt-2 max-w-2xl text-dim">3–30 official previous-year questions, timed at about 2 minutes (Main) or 3 minutes (Advanced) each.
   Marked with each question's real scheme.</p>
 
+{# One-tap tests: each just posts the builder's fields. #}
+<section class="mt-6" aria-label="Quick tests">
+  <p class="label mb-2">quick tests</p>
+  <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+    {% set QUICK = [("Mini test", "10 mixed questions · about 25 min", {"count": 10}),
+                    ("Physics test", "25 questions · Physics only", {"count": 25, "subject": "Physics"}),
+                    ("Chemistry test", "25 questions · Chemistry only", {"count": 25, "subject": "Chemistry"}),
+                    ("Mathematics test", "25 questions · Mathematics only", {"count": 25, "subject": "Mathematics"})] %}
+    {% for title, sub, fields in QUICK %}
+    <form hx-post="/drill" hx-target="#quick-msg">
+      <input type="hidden" name="source" value="unseen">{% for k, v in fields.items() %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+      <button class="card card-hover h-full w-full !p-4 text-left"><p class="font-semibold">{{ title }}</p><p class="mt-0.5 text-xs text-dim">{{ sub }}</p></button>
+    </form>
+    {% endfor %}
+    <form hx-post="/drill" hx-target="#quick-msg">
+      <input type="hidden" name="source" value="weak"><input type="hidden" name="count" value="15">
+      <button class="card card-hover h-full w-full !p-4 text-left !border-amber-300/40"><p class="font-semibold">Weak-area test</p>
+        <p class="mt-0.5 text-xs text-dim">{% if weak %}15 questions · {% for s, t, acc in weak %}{{ s }} {{ QTYPES[t] }} ({{ acc }}%){{ ', ' if not loop.last }}{% endfor %}{% else %}Unlocks after a few tests{% endif %}</p></button>
+    </form>
+  </div>
+  <div id="quick-msg" class="mt-2"></div>
+</section>
+
 <div class="mt-6 grid gap-6 lg:grid-cols-[1.5fr_1fr]">
   <form class="card card-glow space-y-6" method="post" action="/drill" hx-target="#drill-msg">
     <fieldset>
       <legend class="field-label">source</legend>
-      <div class="grid gap-2 sm:grid-cols-3">
+      <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
         {% for k, label in sources.items() %}
         <label class="opt"><input type="radio" name="source" value="{{ k }}" {{ 'checked' if loop.first }}>
           <span class="text-sm">{{ label }}{% if k == 'mistakes' %} <span class="num text-dim">({{ mistakes.values()|sum }})</span>{% elif k == 'bookmarks' %} <span class="num text-dim">({{ bookmarks }})</span>{% endif %}</span></label>

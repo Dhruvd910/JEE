@@ -92,7 +92,8 @@ class Browser:
         self.c = TestClient(app)
 
     def register(self, email="s@example.test", name="Asha Rao", password="password-123"):
-        r = self.c.post("/register", data={"email": email, "name": name, "password": password}, follow_redirects=False)
+        r = self.c.post("/register", data={"email": email, "name": name, "password": password, "minor": "no",
+                                           "privacy": "on"}, follow_redirects=False)
         assert r.status_code == 303, r.text
         return r
 

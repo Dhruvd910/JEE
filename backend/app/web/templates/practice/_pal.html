@@ -1,0 +1,5 @@
+{# One exam-room palette button (NTA colours). Expects item; oob (default true) when sent after a save or a move. #}
+{% set st = ('rev-done' if item.response else 'rev') if item.marked else ('done' if item.response else ('skip' if item.visited else '')) %}
+{% set label = {'rev-done': 'answered, marked for review', 'rev': 'marked for review', 'done': 'answered', 'skip': 'not answered', '': 'not visited'}[st] %}
+<button type="button" id="pal-{{ item.position }}" data-go="{{ item.position }}" class="pal {{ st }}" title="Question {{ item.position }}: {{ label }}"
+        aria-label="Question {{ item.position }}, {{ label }}"{% if oob is not defined or oob %} hx-swap-oob="true"{% endif %}>{{ item.position }}</button>

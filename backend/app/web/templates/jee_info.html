@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}JEE 2027 explained{% endblock %}
+{% block content %}
+{% macro src(s, ref="") %}<a class="font-mono text-[11px] text-cyan-300/80 hover:underline" href="{{ s[1] }}" target="_blank" rel="noopener">{{ s[0] }}{{ ' · ' ~ ref if ref }} ↗</a>{% endmacro %}
+<p class="label">exam info · jee 2027</p>
+<h1 class="h1 mt-1">JEE 2027, <span class="grad-text">from the official papers</span></h1>
+<p class="mt-2 max-w-3xl text-dim">Dates, pattern, marking and eligibility, copied from the NTA's
+  {{ src(j.MAIN_SRC) }} and the {{ src(j.ADV_SRC) }}. Section numbers let you check each point. Rules change every year,
+  so confirm on the official sites before you apply.</p>
+
+<div class="mt-6 flex flex-wrap gap-2">
+  <a href="/practice" class="btn-primary">{{ icon('target') }} Practise in the exam room</a>
+  <a href="/counselling" class="btn">{{ icon('route') }} After the result: counselling</a>
+  <a href="/careers" class="btn">{{ icon('star') }} Where JEE can take you</a>
+</div>
+
+<div class="mt-8 grid gap-6 lg:grid-cols-2">
+  <section class="card">
+    <h2 class="h2">JEE (Main) 2027 dates</h2>
+    <ol class="relative mt-4 space-y-3 border-l border-white/10 pl-5">
+      {% for what, when in j.MAIN_DATES %}
+      <li class="relative"><span class="absolute -left-[26px] top-1.5 h-2.5 w-2.5 rounded-full bg-cyan-300"></span>
+        <p class="text-sm font-semibold">{{ what }}</p><p class="num text-sm text-dim">{{ when }}</p></li>
+      {% endfor %}
+    </ol>
+    <p class="mt-3">{{ src(j.MAIN_SRC, "Important dates") }}</p>
+  </section>
+
+  <section class="card">
+    <h2 class="h2">Paper 1 (B.E./B.Tech.) pattern</h2>
+    <table class="data mt-3">
+      <thead><tr><th>subject</th><th class="text-right">Section A (MCQ)</th><th class="text-right">Section B (numerical)</th><th class="text-right">marks</th></tr></thead>
+      <tbody>{% for s in ['Mathematics', 'Physics', 'Chemistry'] %}
+        <tr class="s-{{ s }}"><td><span class="s-text font-semibold">{{ s }}</span></td><td class="num text-right">20</td><td class="num text-right">5</td><td class="num text-right">100</td></tr>{% endfor %}
+        <tr><td class="font-semibold">Total</td><td class="num text-right" colspan="2">75 questions</td><td class="num text-right font-bold">300</td></tr>
+      </tbody>
+    </table>
+    <dl class="mt-4 space-y-2.5 text-sm">
+      {% for k, v, ref in j.MAIN_PATTERN %}
+      <div><dt class="font-semibold">{{ k }}</dt><dd class="text-dim">{{ v }} <span class="font-mono text-[11px] text-cyan-300/70">§{{ ref }}</span></dd></div>
+      {% endfor %}
+    </dl>
+  </section>
+</div>
+
+<section class="card mt-6">
+  <h2 class="h2">Eligibility, scores and ranks (JEE Main)</h2>
+  <dl class="mt-4 grid gap-4 md:grid-cols-2">
+    {% for k, v, ref in j.MAIN_RULES %}
+    <div class="rounded-xl border border-white/10 bg-white/[.03] p-3"><dt class="font-semibold">{{ k }}</dt>
+      <dd class="mt-1 text-sm text-dim">{{ v }}</dd><dd class="mt-1.5">{{ src(j.MAIN_SRC, ref) }}</dd></div>
+    {% endfor %}
+  </dl>
+  <p class="mt-3 text-xs text-dim">For admission to NITs, IIITs and other GFTIs, JoSAA also has Class XII performance rules:
+    see the <a class="btn-ghost" href="/counselling">counselling centre</a>.</p>
+</section>
+
+<section class="card card-glow mt-6">
+  <h2 class="h2">JEE (Advanced) 2027</h2>
+  <dl class="mt-4 grid gap-4 md:grid-cols-2">
+    {% for k, v, s in j.ADV_FACTS %}
+    <div class="rounded-xl border border-white/10 bg-white/[.03] p-3"><dt class="font-semibold">{{ k }}</dt>
+      <dd class="mt-1 text-sm text-dim">{{ v }}</dd><dd class="mt-1.5">{{ src(s) }}</dd></div>
+    {% endfor %}
+  </dl>
+  <p class="mt-3 text-xs text-dim">The 2027 information brochure (paper pattern, registration dates and fees) is not out yet. It will be on
+    <a class="btn-ghost" href="{{ j.ADV_HOME[1] }}" target="_blank" rel="noopener">jeeadv.ac.in</a>. You can practise the format with past
+    JEE Advanced papers on <a class="btn-ghost" href="/practice">Practice</a>.</p>
+</section>
+<p class="mt-6 text-xs text-dim">Checked against the official documents on 25 Nov 2026. Not affiliated with NTA or the IITs.</p>
+{% endblock %}

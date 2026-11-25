@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Account check{% endblock %}
+{% block content %}
+<div class="card card-glow mx-auto mt-6 max-w-md !p-8">
+  {% if u.guardian_consent_status == "ask" %}
+    <p class="label">one question</p>
+    <h1 class="h1 mt-2">Before you continue</h1>
+    <p class="mt-2 text-sm text-dim">JEE Workbench now asks every student this once. If you are under 18, a parent or guardian has to agree
+      before the site keeps your test answers, plans and chats.</p>
+    {% if error %}<p class="alert mt-4" role="alert">{{ error }}</p>{% endif %}
+    <form method="post" action="/account/consent" class="mt-5 space-y-4">
+      {% include "auth/_age.html" %}
+      <button class="btn-primary w-full">Continue</button>
+    </form>
+  {% elif u.guardian_consent_status == "pending" %}
+    <p class="label">waiting for your parent or guardian</p>
+    <h1 class="h1 mt-2">Almost there</h1>
+    <p class="mt-2 text-sm text-dim">We emailed <b class="text-ink">{{ masked }}</b> a link to review what JEE Workbench keeps and agree to it.
+      Once they do, everything opens. If nobody answers within a week, this account is deleted.</p>
+    {% if msg %}<p class="mt-4 text-sm text-emerald-300" role="status">{{ msg }}</p>{% endif %}
+    <form method="post" action="/account/consent/resend" class="mt-5"><button class="btn">Send the email again</button></form>
+    <p class="mt-4 text-sm text-dim">Meanwhile you can read <a class="btn-ghost" href="/jee">JEE 2027 info</a>, browse
+      <a class="btn-ghost" href="/colleges">colleges</a> and the <a class="btn-ghost" href="/counselling">counselling guide</a>,
+      which keep nothing about you.</p>
+  {% else %}
+    <p class="label">not available</p>
+    <h1 class="h1 mt-2">Your parent or guardian declined</h1>
+    <p class="mt-2 text-sm text-dim">So this account can't be used, and it will be deleted. You can still read the public pages.</p>
+  {% endif %}
+  <form method="post" action="/account/delete" class="mt-6 border-t border-white/10 pt-4"
+        hx-confirm="Delete this account now? This can't be undone.">
+    <button class="btn-ghost !text-rose-300">Delete my account now</button>
+  </form>
+</div>
+{% endblock %}

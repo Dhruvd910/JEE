@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Profile{% endblock %}
+{% block content %}
+<p class="label">profile & settings</p>
+<h1 class="h1 mt-1">Your <span class="grad-text">profile</span></h1>
+<p class="mt-2 max-w-2xl text-sm text-dim">Category, gender and home state are optional and used only by the predictor and the assistant
+  (to compare your rank with the right seats). Admins never see them.</p>
+{% if saved %}<p class="mt-4 rounded-xl border border-emerald-300/30 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100" role="status">Saved.</p>{% endif %}
+<form method="post" action="/profile" class="card mt-6 grid max-w-2xl gap-4 sm:grid-cols-2">
+  <label class="sm:col-span-2"><span class="field-label">name</span><input class="field" name="name" value="{{ me.name }}" maxlength="120" required></label>
+  <label><span class="field-label">{{ 'email' if me.email else 'phone' }}</span><input class="field opacity-70" value="{{ me.email or me.phone }}" disabled></label>
+  <label><span class="field-label">exam date</span><input class="field" type="date" name="target_date" value="{{ me.target_date or '' }}"></label>
+  <label><span class="field-label">category</span><select class="field" name="category"><option value="">Prefer not to say</option>
+    {% for c in categories %}<option {{ 'selected' if c == me.category }}>{{ c }}</option>{% endfor %}</select></label>
+  <label><span class="field-label">gender</span><select class="field" name="gender"><option value="">Prefer not to say</option>
+    <option value="male" {{ 'selected' if me.gender == 'male' }}>Male / other</option><option value="female" {{ 'selected' if me.gender == 'female' }}>Female</option></select></label>
+  <label class="sm:col-span-2"><span class="field-label">home state (domicile)</span><select class="field" name="home_state"><option value="">—</option>
+    {% for s in STATES %}<option {{ 'selected' if s == me.home_state }}>{{ s }}</option>{% endfor %}</select></label>
+  <div class="sm:col-span-2"><button class="btn-primary">Save</button></div>
+</form>
+<section class="card mt-6 max-w-2xl">
+  <h2 class="h2">Your data</h2>
+  <p class="mt-1 text-sm text-dim">What the site keeps is listed in the <a class="btn-ghost" href="/privacy">privacy notice</a>.
+    {% if me.google_sub %}You can sign in with Google.{% endif %}{% if me.phone %} You can sign in with your phone.{% endif %}</p>
+  {% if me.role.value != 'admin' %}
+  <form method="post" action="/account/delete" class="mt-4" hx-confirm="Delete your account and everything in it (tests, plans, chats)? This can't be undone.">
+    <button class="btn !border-rose-300/50 !text-rose-200">Delete my account</button>
+  </form>
+  {% endif %}
+</section>
+{% endblock %}

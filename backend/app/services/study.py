@@ -2,15 +2,16 @@
 college comparison."""
 from __future__ import annotations
 
+from datetime import date
 import random
 import re
 from collections import defaultdict
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import and_, delete, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
-from app.models import (Attempt, AttemptItem, Bookmark, ChoiceItem, Cutoff, Institute, Question, SyllabusUnit,
+from app.models import (Attempt, AttemptItem, Bookmark, ChoiceItem, Cutoff, Institute, MockLog, Question, SyllabusUnit,
                         UnitProgress, User)
 from app.services import exams
 
@@ -124,8 +125,16 @@ def mistake_counts(db: Session, user: User) -> dict[str, int]:
 
 # ---------------------------------------------------------------- custom drill
 
-DRILL_SOURCES = {"unseen": "Unseen previous-year questions", "mistakes": "My mistakes (retest)",
-                 "bookmarks": "My bookmarks"}
+DRILL_SOURCES = {"unseen": "Unseen previous-year questions", "weak": "My weak areas",
+                 "mistakes": "My mistakes (retest)", "bookmarks": "My bookmarks"}
+
+
+def weak_areas(db: Session, user: User, n: int = 2) -> list[tuple[str, str, int]]:
+    """The (subject, question type, accuracy) pairs with the lowest accuracy over submitted tests,
+    counting only types with at least 3 answered questions."""
+    rows = [(s, t, r["accuracy"]) for (s, t), r in analytics(db, user)["by_type"].items()
+            if r["attempted"] >= 3 and r["accuracy"] is not None]
+    return sorted(rows, key=lambda r: r[2])[:n]
 
 
 def start_drill(db: Session, user: User, subject: str | None, exam: str | None, qtype: str | None, count: int,
@@ -139,6 +148,11 @@ def start_drill(db: Session, user: User, subject: str | None, exam: str | None, 
     else:
         ids = None
     stmt = select(Question).where(Question.status == "served", Question.origin == "pyq")
+    if source == "weak":
+        weak = weak_areas(db, user)
+        if not weak:
+            return None
+        stmt = stmt.where(or_(*(and_(Question.subject == s, Question.qtype == t) for s, t, _ in weak)))
     if ids is not None:
         stmt = select(Question).where(Question.status == "served", Question.id.in_(ids))
     else:
@@ -191,6 +205,65 @@ def chart_points(trend: list[dict], w: int = 640, h: int = 180, pad: int = 24) -
     step = (w - 2 * pad) / max(1, n - 1)
     return [(pad + i * step if n > 1 else w / 2, h - pad - (h - 2 * pad) * max(0, t["pct"]) / 100, t)
             for i, t in enumerate(trend)]
+
+
+# ---------------------------------------------------------------- outside mock-test log
+
+def mock_logs(db: Session, user: User) -> list[MockLog]:
+    return list(db.scalars(select(MockLog).where(MockLog.user_id == user.id).order_by(MockLog.test_date, MockLog.id)))
+
+
+def mock_summary(logs: list[MockLog]) -> dict | None:
+    """Latest, average and best score %, the direction of the last three against the three before, and
+    average marks per subject (where entered)."""
+    if not logs:
+        return None
+    pct = [round(100 * m.score / m.max_score) for m in logs]
+    trend = None
+    if len(pct) >= 4:
+        recent, before = pct[-3:], pct[-6:-3]
+        diff = sum(recent) / len(recent) - sum(before) / len(before)
+        trend = {"diff": round(diff), "direction": "up" if diff >= 2 else "down" if diff <= -2 else "steady"}
+    subjects = {}
+    for s in ("physics", "chemistry", "mathematics"):
+        vals = [(getattr(m, s), m.max_score / 3) for m in logs if getattr(m, s) is not None]
+        if vals:
+            avg = round(sum(v for v, _ in vals) / len(vals), 1)
+            subjects[s.title()] = {"avg": int(avg) if avg.is_integer() else avg,
+                                   "pct": round(100 * sum(v for v, _ in vals) / sum(x for _, x in vals))}
+    weak = min(subjects, key=lambda k: subjects[k]["pct"]) if len(subjects) > 1 else None
+    return {"latest": pct[-1], "average": round(sum(pct) / len(pct)), "best": max(pct), "count": len(logs),
+            "trend": trend, "subjects": subjects, "weak": weak}
+
+
+def add_mock_log(db: Session, user: User, form) -> str | None:
+    """Save one outside mock from a form; returns an error message instead when something is off."""
+    def num(k):
+        v = str(form.get(k, "")).strip()
+        if not v:
+            return None
+        return float(v)
+    try:
+        score, max_score = num("score"), num("max_score")
+        parts = {s: num(s) for s in ("physics", "chemistry", "mathematics")}
+        percentile = num("percentile")
+        day = date.fromisoformat(str(form.get("test_date", "")))
+    except ValueError:
+        return "Check the numbers and the date."
+    name = str(form.get("name", "")).strip()[:120]
+    if not name or score is None or not max_score or not 0 < max_score <= 1000:
+        return "Enter the test name, your score and the maximum marks."
+    if not -max_score <= score <= max_score or day > date.today():
+        return "The score must be within the maximum marks, and the date cannot be in the future."
+    if percentile is not None and not 0 <= percentile <= 100:
+        return "Percentile is between 0 and 100."
+    if any(v is not None and abs(v) > max_score for v in parts.values()):
+        return "A subject score is larger than the maximum marks."
+    db.add(MockLog(user_id=user.id, name=name, provider=str(form.get("provider", "")).strip()[:120],
+                   exam="advanced" if form.get("exam") == "advanced" else "main", test_date=day, score=score,
+                   max_score=max_score, percentile=percentile, notes=str(form.get("notes", "")).strip()[:1000], **parts))
+    db.commit()
+    return None
 
 
 # ---------------------------------------------------------------- JoSAA choice list

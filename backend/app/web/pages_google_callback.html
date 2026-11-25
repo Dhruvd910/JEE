@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <meta name="referrer" content="no-referrer">
+  <title>Signing you in · JEE Workbench</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #060912;
+           font-family: system-ui, "Segoe UI", Roboto, Arial, sans-serif; color: #94a3c4; }
+  </style>
+</head>
+<body>
+  <p id="msg">Signing you in…</p>
+  <script>
+    // Published on the gh-pages branch by serve_public.py. Google returns here (a fixed address it can trust); pass the
+    // sign-in result on to the site's current address, which checks it. Only the site's own tunnel addresses are used.
+    fetch("current.json?t=" + Date.now(), { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => {
+        const url = new URL(d.url);
+        if (!/\.trycloudflare\.com$/.test(url.hostname)) throw new Error("unexpected address");
+        location.replace(url.origin + "/auth/google/callback" + location.search);
+      })
+      .catch(() => { document.getElementById("msg").textContent = "The site is offline right now. Please try again later."; });
+  </script>
+</body>
+</html>

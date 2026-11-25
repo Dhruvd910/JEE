@@ -25,7 +25,7 @@ MOCKS = {
     "advanced": {"title": "JEE Advanced mock", "minutes": 180,
                  "sections": [("single", 4, 3, 1), ("multi", 4, 4, 1), ("num", 4, 4, 0), ("match", 4, 4, 1)]},
 }
-DAILY_PER_SUBJECT, DAILY_MINUTES = 3, 20
+DAILY_COUNT, DAILY_MINUTES = 5, 10  # the daily quiz is a 5-question game
 
 
 def utcnow() -> datetime:
@@ -131,12 +131,17 @@ def start_mock(db: Session, user: User, exam: str) -> Attempt | None:
 def daily_questions(db: Session, day: date) -> list[Question]:
     """The same questions for everyone on a given day: previous-year questions, picked by the date."""
     rng = random.Random(day.isoformat())
-    out = []
-    for subject in SUBJECTS:
+    pools = []
+    for subject in SUBJECTS[day.toordinal() % 3:] + SUBJECTS[:day.toordinal() % 3]:  # the 2-2-1 split rotates daily
         ids = sorted(db.scalars(select(Question.id).where(Question.origin == "pyq", Question.status == "served",
                                                           Question.subject == subject)))
-        out += [db.get(Question, i) for i in rng.sample(ids, min(DAILY_PER_SUBJECT, len(ids)))]
-    return out
+        pools.append(rng.sample(ids, len(ids)))
+    picked = []
+    while len(picked) < DAILY_COUNT and any(pools):
+        for pool in pools:
+            if pool and len(picked) < DAILY_COUNT:
+                picked.append(pool.pop())
+    return [db.get(Question, i) for i in picked]
 
 
 def start_daily(db: Session, user: User, day: date | None = None) -> Attempt:
@@ -153,6 +158,31 @@ def start_daily(db: Session, user: User, day: date | None = None) -> Attempt:
 
 def is_open(a: Attempt) -> bool:
     return a.submitted_at is None and utcnow() < _aware(a.deadline)
+
+
+def begin(db: Session, a: Attempt) -> Attempt:
+    """Leave the instructions screen: the full time starts now (unless answers were already given)."""
+    if a.begun_at is None and is_open(a):
+        now = utcnow()
+        if not any(i.response for i in a.items):
+            a.deadline, a.started_at = now + (_aware(a.deadline) - _aware(a.started_at)), now
+        a.begun_at = now
+        db.commit()
+    return a
+
+
+def note_visit(db: Session, a: Attempt, position: int, seconds: int, marked: bool | None) -> AttemptItem:
+    """Exam room: the student moved off a question after `seconds` on it, maybe marking it for review."""
+    if not is_open(a):
+        finish(db, a)
+        raise PermissionError("This test is closed.")
+    item = next(i for i in a.items if i.position == position)
+    item.visited = True
+    item.seconds = (item.seconds or 0) + max(0, min(seconds, 3600))  # one call never adds more than an hour
+    if marked is not None:
+        item.marked = marked
+    db.commit()
+    return item
 
 
 def save_response(db: Session, a: Attempt, position: int, response: list | None) -> AttemptItem:
@@ -196,6 +226,78 @@ def breakdown(a: Attempt) -> dict[str, dict]:
         key = "blank" if not item.response else "correct" if m == q.marks_full else "partial" if m > 0 else "wrong"
         row[key] += 1
     return {k: v for k, v in out.items() if v["max"]}
+
+
+QTYPE_NAMES = {"single": "single correct", "multi": "one or more correct", "match": "matching list", "num": "numerical"}
+
+
+def outcome(item: AttemptItem) -> str:
+    """correct / partial / wrong / blank, for a submitted item."""
+    if not item.response:
+        return "blank"
+    m = item.marks if item.marks is not None else item_marks(item)
+    return "correct" if m == item.question.marks_full else "partial" if m > 0 else "wrong"
+
+
+def insights(a: Attempt) -> dict:
+    """Scorecard detail from this attempt alone: results by subject and question type, and plain notes on
+    what to work on. Every note is a count from the attempt, never a guess about the real exam."""
+    rows: dict[tuple[str, str], dict] = {}
+    for item in a.items:
+        q = item.question
+        r = rows.setdefault((q.subject, q.qtype), {"subject": q.subject, "qtype": q.qtype, "n": 0, "score": 0, "max": 0,
+                                                     "correct": 0, "partial": 0, "wrong": 0, "blank": 0, "secs": 0})
+        r["n"] += 1
+        r["max"] += q.marks_full
+        r["score"] += item.marks or 0
+        r["secs"] += item.seconds or 0
+        r[outcome(item)] += 1
+    for r in rows.values():
+        tried = r["n"] - r["blank"]
+        r["accuracy"] = round(100 * (r["correct"] + r["partial"]) / tried) if tried else None
+        r["avg_secs"] = round(r["secs"] / r["n"]) if r["secs"] else None
+
+    notes = []
+    items = list(a.items)
+    lost = -sum(i.marks for i in items if (i.marks or 0) < 0)
+    if lost:
+        worst = min((r for r in rows.values() if r["wrong"]), key=lambda r: r["accuracy"] if r["accuracy"] is not None else 100)
+        notes.append(f"You lost {lost} mark{'s' if lost > 1 else ''} to wrong answers. Accuracy was lowest in {worst['subject']} "
+                     f"{QTYPE_NAMES[worst['qtype']]} questions ({worst['accuracy']}% of those you tried): "
+                     "answer these only when you can rule out the other options.")
+    subj = {}
+    for r in rows.values():
+        s = subj.setdefault(r["subject"], [0, 0])
+        s[0] += r["score"]
+        s[1] += r["max"]
+    pct = {k: v[0] / v[1] for k, v in subj.items() if v[1]}
+    if len(pct) > 1 and max(pct.values()) - min(pct.values()) >= 0.1:  # only when one subject clearly lags
+        weak = min(pct, key=pct.get)
+        notes.append(f"{weak} was your lowest-scoring subject ({subj[weak][0]}/{subj[weak][1]}). "
+                     "Retest your mistakes there before the next full paper.")
+    blank = sum(1 for i in items if not i.response)
+    if a.submitted_at and items and blank / len(items) >= 0.3:
+        spare = int((_aware(a.deadline) - _aware(a.submitted_at)).total_seconds() // 60)
+        notes.append(f"You left {blank} of {len(items)} questions blank" +
+                     (f" and submitted with {spare} minutes still on the clock. Use spare time on marked questions."
+                      if spare >= 10 else ". Practise timed sections to get through the paper."))
+    marked_blank = [i.position for i in items if i.marked and not i.response]
+    if marked_blank:
+        notes.append(f"Marked for review but never answered: Q{', Q'.join(map(str, marked_blank[:8]))}. "
+                     "Leave a few minutes at the end to go back to these.")
+    timed = [i for i in items if i.seconds]
+    if len(timed) >= 5:
+        avg = sum(i.seconds for i in timed) / len(timed)
+        slow = sorted((i for i in timed if i.seconds > 2 * avg and outcome(i) in ("wrong", "blank")),
+                      key=lambda i: -i.seconds)[:3]
+        if slow:
+            notes.append("These took over twice your average time and still did not score: " +
+                         ", ".join(f"Q{i.position} ({i.seconds // 60}m {i.seconds % 60}s)" for i in slow) +
+                         ". Move on sooner and come back if time allows.")
+    if not notes and items and all(outcome(i) == "correct" for i in items):
+        notes.append("Every question right. Try a full mock next.")
+    order = {s: k for k, s in enumerate(dict.fromkeys(i.question.subject for i in items))}
+    return {"rows": sorted(rows.values(), key=lambda r: (order[r["subject"]], r["qtype"])), "notes": notes}
 
 
 # ---------------------------------------------------------------- progress

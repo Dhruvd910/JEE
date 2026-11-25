@@ -33,6 +33,18 @@
         {% else %}<li class="text-sm text-dim">No activity yet.</li>{% endfor %}
       </ol>
     </section>
+    <section class="card" id="reviews">
+      <h2 class="h2">Reviews to check <span class="text-sm text-dim">({{ d.reviews|length }})</span></h2>
+      {% for r in d.reviews %}
+      <article class="mt-3 rounded-xl border border-white/10 bg-white/[.03] p-3 text-sm">
+        <p class="text-xs text-dim"><a class="btn-ghost" href="/colleges/{{ r.institute_id }}">{{ r.institute.name }}</a> · {{ r.rating }}★ · {{ r.relation }} ·
+          <a class="btn-ghost" href="/admin/users/{{ r.user_id }}">{{ r.user.name }}</a> · {{ r.created_at|when }}</p>
+        <p class="mt-1.5 whitespace-pre-line">{{ r.body }}</p>
+        <div class="mt-2 flex gap-2"><button class="btn-ghost-sm" hx-post="/admin/reviews/{{ r.id }}/approve" hx-target="closest div" hx-swap="innerHTML">approve</button>
+          <button class="btn-ghost-sm" hx-post="/admin/reviews/{{ r.id }}/reject" hx-target="closest div" hx-swap="innerHTML">reject</button></div>
+      </article>
+      {% else %}<p class="mt-2 text-sm text-dim">Nothing waiting.</p>{% endfor %}
+    </section>
     <section class="card">
       <h2 class="h2">Health checklist</h2>
       <ul class="mt-4 space-y-2.5 text-sm">
@@ -86,6 +98,23 @@
     <div class="stat"><dt>transcripts agreed</dt><dd>{{ d.transcripts.get(true, 0) }}<span class="text-sm text-dim">/{{ d.transcripts.get(true, 0) + d.transcripts.get(false, 0) }}</span></dd></div>
     <div class="stat"><dt>mock versions</dt><dd class="acc-text">{{ c[('main','variant','served')] + c[('advanced','variant','served')] }}</dd></div>
   </dl>
+  <section class="card" id="reports">
+    <h2 class="h2">Reported by students <span class="text-sm text-dim">({{ d.reports|length }} open)</span></h2>
+    {% if d.reports %}
+    <div class="mt-3 overflow-x-auto"><table class="data">
+      <thead><tr><th>when</th><th>question</th><th>problem</th><th>student</th><th></th></tr></thead>
+      <tbody>{% for r in d.reports %}
+        <tr><td class="text-xs text-dim">{{ r.created_at|when }}</td>
+          <td>{% if r.question.paper %}<a class="btn-ghost" href="/admin/papers/{{ r.question.paper_id }}">{{ r.question.paper.title }} · Q{{ r.question.number }}</a>{% else %}{{ r.question.subject }} mock version #{{ r.question.id }}{% endif %}
+            <span class="text-xs text-dim">({{ r.question.status }})</span></td>
+          <td>{{ {'wrong_key': 'Answer key wrong', 'unclear': 'Image unclear', 'two_answers': 'Two answers look right', 'other': 'Other'}.get(r.reason, r.reason) }}{% if r.note %}<p class="text-xs text-dim">“{{ r.note }}”</p>{% endif %}</td>
+          <td><a class="btn-ghost" href="/admin/users/{{ r.user_id }}">{{ r.user.name }}</a></td>
+          <td class="whitespace-nowrap"><button class="btn-ghost-sm" hx-post="/admin/questions/{{ r.question_id }}/toggle" hx-swap="outerHTML">{{ 'served · hide' if r.question.status == 'served' else 'hidden · unhide' }}</button>
+            <button class="btn-ghost-sm" hx-post="/admin/reports/{{ r.id }}/resolve" hx-swap="outerHTML">resolve</button></td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+    {% else %}<p class="mt-2 text-sm text-dim">Nothing reported. Students can report a question from their result page.</p>{% endif %}
+  </section>
   <div class="grid gap-6 xl:grid-cols-2">
     {% for exam_key, spec in d.mocks.items() %}
     <section class="card">

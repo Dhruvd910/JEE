@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Careers after JEE{% endblock %}
+{% block content %}
+<p class="label">careers · routes</p>
+<h1 class="h1 mt-1">Where JEE <span class="grad-text">can take you</span></h1>
+<p class="mt-2 max-w-3xl text-dim">The routes that use JEE results and where each one is officially decided. Every
+  institute sets its own eligibility, so check its admission notice before you plan around it.</p>
+
+<div class="mt-6 grid gap-4 md:grid-cols-2">
+  {% for title, how, note, s in j.ROUTES %}
+  <section class="card card-hover">
+    <h2 class="font-semibold">{{ title }}</h2>
+    <p class="mt-1.5 text-sm">{{ how }}</p>
+    <p class="mt-1 text-sm text-dim">{{ note }}</p>
+    <a class="mt-3 inline-block font-mono text-[11px] text-cyan-300/80 hover:underline" href="{{ s[1] }}" target="_blank" rel="noopener">{{ s[0] }} ↗</a>
+  </section>
+  {% endfor %}
+</div>
+
+<section class="card mt-6">
+  <h2 class="h2">Choosing a branch and college</h2>
+  <p class="mt-2 text-sm text-dim">Past opening and closing ranks for every IIT, NIT, IIIT and GFTI programme come from JoSAA, and NIRF
+    rankings from the Ministry of Education. Use them together:</p>
+  <div class="mt-4 flex flex-wrap gap-2">
+    <a href="/predictor" class="btn-primary">{{ icon('compass') }} Colleges for my rank</a>
+    <a href="/colleges" class="btn">{{ icon('building') }} Browse institutes</a>
+    <a href="/compare" class="btn">{{ icon('scale') }} Compare</a>
+    <a href="/jee" class="btn">{{ icon('file') }} JEE 2027 facts</a>
+  </div>
+</section>
+{% endblock %}

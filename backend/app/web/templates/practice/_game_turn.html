@@ -1,0 +1,30 @@
+{# The answer just locked in: right or wrong at once, the official key, XP, then the next question or the result. #}
+{% with oob = true %}{% include "practice/_game_bar.html" %}{% endwith %}
+<div class="verdict {{ 'ok' if right else 'no' }}" role="status">
+  {% if right %}
+    <span>✅ Correct!</span><span class="xp-pill">+{{ gained }} XP</span>{% if g.combo >= 2 %}<span class="combo">combo ×{{ g.combo }}</span>{% endif %}
+  {% elif item.marks and item.marks > 0 %}
+    <span>🟡 Partly right</span><span class="xp-pill">+{{ gained }} XP</span>
+  {% else %}
+    <span>❌ Not quite</span><span class="text-sm font-medium">{{ '−1 life' if g.hearts else 'no lives left' }}</span>
+  {% endif %}
+</div>
+<div class="mt-4">{% with review = true, bm = [] %}{% include "practice/_question.html" %}{% endwith %}</div>
+<div class="mt-5 flex justify-end">
+  {% if over %}
+    <a class="btn-primary" href="/attempt/{{ a.id }}/result">{{ 'Game over · see result' if g.hearts == 0 else 'Finish · see result' }} →</a>
+  {% else %}
+    <a class="btn-primary" href="/attempt/{{ a.id }}" autofocus>Next question →</a>
+  {% endif %}
+</div>
+<script>
+  // a short chime for right, a low buzz for wrong (silently skipped where audio is blocked)
+  try {
+    const ac = new (window.AudioContext || window.webkitAudioContext)(), o = ac.createOscillator(), gn = ac.createGain();
+    const notes = {{ '[660, 880]' if right else '[220, 160]' }};
+    o.type = "{{ 'triangle' if right else 'sawtooth' }}"; o.connect(gn); gn.connect(ac.destination);
+    gn.gain.setValueAtTime(.08, ac.currentTime); gn.gain.exponentialRampToValueAtTime(.0001, ac.currentTime + .35);
+    notes.forEach((f, i) => o.frequency.setValueAtTime(f, ac.currentTime + i * .12));
+    o.start(); o.stop(ac.currentTime + .36);
+  } catch (e) {}
+</script>

@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Study plan{% endblock %}
+{% block content %}
+{% set KIND = {"learn": ("chip", "learn"), "revise": ("chip-vio", "revise"), "drill": ("chip-warn", "drill"),
+               "mock": ("chip-bad", "mock"), "quiz": ("chip-ok", "quiz")} %}
+<div class="flex flex-wrap items-end justify-between gap-4">
+  <div>
+    <p class="label">study plan · roadmap</p>
+    <h1 class="h1 mt-1">Your road to <span class="grad-text">JEE {{ plan.exam_date.year }}</span></h1>
+    <p class="mt-2 max-w-2xl text-dim">A week-by-week plan from your exam date, study hours, syllabus tracker and test accuracy.
+      Tick a task when it's done; the plan reshapes itself.</p>
+  </div>
+  <div class="card card-glow !p-4 text-right">
+    <p class="label">exam</p>
+    <p class="num text-2xl font-bold grad-text">{{ (plan.exam_date - today).days }} days</p>
+    <p class="text-xs text-dim">{{ plan.exam_date.strftime('%d %b %Y') }}{{ ' · estimated' if plan.estimated_date }}</p>
+  </div>
+</div>
+
+<form method="post" action="/study-plan" class="card mt-6 grid gap-4 sm:grid-cols-4">
+  <label><span class="field-label">exam date</span><input class="field" type="date" name="target_date" value="{{ me.target_date or '' }}"></label>
+  <label><span class="field-label">class</span><select class="field" name="class_level">
+    <option value="">—</option>{% for k, v in classes.items() %}<option value="{{ k }}" {{ 'selected' if me.class_level == k }}>{{ v }}</option>{% endfor %}</select></label>
+  <label><span class="field-label">study hours a day</span><input class="field num" type="number" name="study_hours" min="1" max="14" value="{{ plan.hours_per_day }}"></label>
+  <div class="flex items-end"><button class="btn-primary w-full">{{ icon('calendar') }} Update plan</button></div>
+</form>
+{% for n in plan.notes %}<p class="alert mt-3">{{ n }}</p>{% endfor %}
+
+{# roadmap phases #}
+{% set cover = plan.weeks|selectattr('phase', 'equalto', 'Cover the syllabus')|list %}
+<div class="mt-6 grid gap-3 sm:grid-cols-3">
+  <div class="card !p-4"><p class="label">units left</p><p class="num mt-1 text-3xl font-bold text-cyan-200">{{ plan.remaining_units }}</p>
+    <p class="text-xs text-dim">to learn or revise · <a class="btn-ghost" href="/syllabus">syllabus tracker</a></p></div>
+  <div class="card !p-4"><p class="label">phase 1 · cover the syllabus</p><p class="num mt-1 text-3xl font-bold text-violet-300">{{ cover|length }} wk</p>
+    <p class="text-xs text-dim">learn new units, revise studied ones, weekly drills</p></div>
+  <div class="card !p-4"><p class="label">phase 2 · final revision</p><p class="num mt-1 text-3xl font-bold text-amber-300">{{ plan.weeks|length - cover|length }} wk</p>
+    <p class="text-xs text-dim">two full mocks a week, retest mistakes, formula revision</p></div>
+</div>
+
+<div class="mt-6 space-y-4">
+  {% for w in plan.weeks %}
+    {% if show_all or loop.index <= 4 %}
+    <section class="card {{ 'card-glow' if loop.first }}">
+      <div class="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 class="h2">{{ 'This week' if loop.first else 'Week of ' ~ w.start.strftime('%d %b') }}</h2>
+        <span class="{{ 'chip-vio' if w.phase == 'Cover the syllabus' else 'chip-warn' }}">{{ w.phase }}</span>
+      </div>
+      <ul class="mt-3 space-y-2">
+        {% for t in w.tasks %}
+          <li class="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[.03] px-3 py-2 text-sm">
+            <span class="{{ KIND[t.kind][0] }} w-16 shrink-0 justify-center">{{ KIND[t.kind][1] }}</span>
+            <span class="min-w-0 flex-1">{{ t.text }}</span>
+            {% if t.unit_id %}
+              <form method="post" action="/study-plan/done/{{ t.unit_id }}"><input type="hidden" name="kind" value="{{ t.kind }}">
+                <button class="btn !px-3 !py-1.5 text-xs" title="Mark done: moves this unit forward in your syllabus tracker">{{ icon('check') }} Done</button></form>
+            {% elif t.href %}<a class="btn-ghost-sm" href="{{ t.href }}">Open →</a>{% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+  {% endfor %}
+</div>
+{% if plan.weeks|length > 4 and not show_all %}<a href="/study-plan?all=1" class="btn mt-4">Show all {{ plan.weeks|length }} weeks</a>{% endif %}
+<p class="mt-4 text-xs text-dim">Planning estimates: about 10 hours to learn a unit and 4 to revise it, over 6 study days a week. NTA does not publish
+  hours per unit, so adjust your hours if the pace feels wrong. Units come from NTA's official JEE Main syllabus.</p>
+{% endblock %}

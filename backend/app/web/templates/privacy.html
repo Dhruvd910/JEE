@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Privacy notice{% endblock %}
+{% block content %}
+<article class="card mx-auto max-w-3xl !p-8 text-sm leading-relaxed">
+  <p class="label">privacy notice · version {{ version }}</p>
+  <h1 class="h1 mt-2">What JEE Workbench keeps, and why</h1>
+  <h2 class="h2 mt-6">What we keep</h2>
+  <ul class="mt-2 list-disc space-y-1 pl-5 text-dim">
+    <li><b class="text-ink">Account:</b> your name, and your email, phone number or Google account id, depending on how you sign in.
+      Passwords are stored only as a one-way hash.</li>
+    <li><b class="text-ink">Your work:</b> test answers, scores, time per question, bookmarks, mistakes, study plan, syllabus progress,
+      mock-test log, saved colleges, JoSAA choice list and assistant chats.</li>
+    <li><b class="text-ink">Optional:</b> category, gender, home state and target date, used only by the predictor and the study plan.</li>
+    <li><b class="text-ink">Reviews and reports</b> you send. Reviews are shown without your name after an admin checks them.</li>
+    <li><b class="text-ink">Sign-in times</b> and a count of sign-ins, so the admin can see the site is used.</li>
+  </ul>
+  <h2 class="h2 mt-6">Who sees it</h2>
+  <p class="mt-2 text-dim">You, and the site's admins. Assistant questions are sent to free AI models (through OpenRouter) to get an
+    answer. Phone sign-in codes go through Tekurious, and Google sign-in through Google. Nothing is sold or used for ads.</p>
+  <h2 class="h2 mt-6">Students under 18</h2>
+  <p class="mt-2 text-dim">We ask a parent or guardian by email first. Until they agree, nothing about the student is kept beyond the
+    sign-up itself. If nobody answers within {{ days }} days, or they decline, the account is deleted.</p>
+  <h2 class="h2 mt-6">Your choices</h2>
+  <p class="mt-2 text-dim">You can change your details on your profile, and delete your account, with everything in it, from the
+    profile page.{% if contact %} Questions: <a class="btn-ghost" href="mailto:{{ contact }}">{{ contact }}</a>.{% endif %}</p>
+</article>
+{% endblock %}

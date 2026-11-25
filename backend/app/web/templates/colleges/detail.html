@@ -9,7 +9,10 @@
     <h1 class="h1 mt-2">{{ inst.name }}</h1>
     <p class="mt-1 text-dim">{{ inst.city or '' }}{{ ', ' if inst.city and inst.state }}{{ inst.state or '' }}</p>
   </div>
-  <a href="/compare?ids={{ inst.id }}" class="btn">{{ icon('scale') }} Compare</a>
+  <div class="flex gap-2">
+    {% if me %}{% include "colleges/_save.html" %}{% endif %}
+    <a href="/compare?ids={{ inst.id }}" class="btn">{{ icon('scale') }} Compare</a>
+  </div>
 </div>
 
 <div class="mt-6 grid gap-4 md:grid-cols-[auto_1fr]">
@@ -42,4 +45,40 @@
     {% for g in ['Gender-Neutral', 'Female-only (including Supernumerary)'] %}<option {{ 'selected' if g == gender }}>{{ g }}</option>{% endfor %}</select></label>
 </form>
 <div id="ranks" class="mt-4">{% include "colleges/_ranks.html" %}</div>
+
+<section class="mt-10" id="reviews">
+  <div class="flex flex-wrap items-baseline gap-3">
+    <h2 class="h2">Student reviews</h2>
+    {% if avg %}<span class="num text-amber-300">{{ '★' * (avg|round|int) }}<span class="text-dim">{{ '★' * (5 - avg|round|int) }}</span> {{ avg }}</span>
+      <span class="text-xs text-dim">from {{ reviews|length }} review{{ 's' if reviews|length > 1 }}</span>{% endif %}
+  </div>
+  <p class="mt-1 text-xs text-dim">Opinions of students who use this site, checked by an admin before they appear. Not verified by the institute.</p>
+  <div class="mt-4 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+    <div class="space-y-3">
+      {% for r in reviews %}
+      <article class="card !p-4">
+        <p class="flex flex-wrap items-center gap-2 text-xs text-dim"><span class="text-amber-300">{{ '★' * r.rating }}<span class="text-dim">{{ '★' * (5 - r.rating) }}</span></span>
+          <span>{{ RELATIONS.get(r.relation, '') }}</span><span>· {{ r.created_at|when }}</span></p>
+        <p class="mt-2 whitespace-pre-line text-sm">{{ r.body }}</p>
+      </article>
+      {% else %}<p class="text-sm text-dim">No reviews yet.</p>{% endfor %}
+    </div>
+    {% if not me %}
+      <div class="card text-sm"><a class="btn-ghost" href="/login?next=/colleges/{{ inst.id }}">Sign in</a> to write a review.</div>
+    {% elif mine %}
+      <div class="card text-sm text-dim">You reviewed this institute ({{ mine.rating }}★). Status: <b class="text-ink">{{ {'pending': 'waiting for an admin', 'approved': 'published', 'rejected': 'not published'}[mine.status] }}</b>.</div>
+    {% else %}
+      <form class="card space-y-3" hx-post="/colleges/{{ inst.id }}/review" hx-target="this" hx-swap="outerHTML">
+        <h3 class="font-semibold">Write a review</h3>
+        <fieldset class="flex gap-1" aria-label="Rating">{% for n in range(1, 6) %}
+          <label class="opt !px-2.5 !py-1"><input type="radio" name="rating" value="{{ n }}" required><span class="num text-sm">{{ n }}★</span></label>{% endfor %}</fieldset>
+        <label><span class="field-label">you are</span><select class="field" name="relation">{% for k, l in RELATIONS.items() %}<option value="{{ k }}">{{ l }}</option>{% endfor %}</select></label>
+        <label><span class="field-label">your review</span><textarea class="field min-h-28" name="body" minlength="30" maxlength="2000" required
+          placeholder="Teaching, hostel, placements, campus life: what should an aspirant know?"></textarea></label>
+        <p class="text-[11px] text-dim">Shown without your name, after an admin checks it. Don't include personal details.</p>
+        <button class="btn-primary">Send review</button>
+      </form>
+    {% endif %}
+  </div>
+</section>
 {% endblock %}

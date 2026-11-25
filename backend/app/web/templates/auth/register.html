@@ -12,8 +12,10 @@
       <input class="field" type="email" name="email" value="{{ form.email or '' }}" required autocomplete="email"></label>
     <label class="block"><span class="field-label">password (8+ characters)</span>
       <input class="field" type="password" name="password" required minlength="8" autocomplete="new-password"></label>
+    {% include "auth/_age.html" %}
     <button class="btn-primary w-full">Create account</button>
   </form>
+  {% include "auth/_other_ways.html" %}
   <p class="mt-5 text-xs text-dim">We store your name, email and test answers to show your progress. Category, gender
     and home state are optional and only used by the predictor.</p>
 </div>

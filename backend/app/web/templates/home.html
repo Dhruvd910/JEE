@@ -25,31 +25,13 @@
   </div>
 
   {# animated circuit / orbit illustration #}
-  <div class="relative mx-auto aspect-square w-full max-w-md" aria-hidden="true">
-    <svg viewBox="0 0 400 400" class="h-full w-full">
-      <defs>
-        <linearGradient id="g1" x1="0" x2="1"><stop offset="0" stop-color="#22d3ee"/><stop offset="1" stop-color="#a78bfa"/></linearGradient>
-        <radialGradient id="core"><stop offset="0" stop-color="#22d3ee" stop-opacity=".9"/><stop offset="1" stop-color="#22d3ee" stop-opacity="0"/></radialGradient>
-      </defs>
-      <g stroke="#94a3c4" stroke-opacity=".18" fill="none">
-        <path d="M20 80h90l30 30h80M20 320h70l40-40h120l30 30h90M380 60h-80l-30 30v60M300 380v-70l20-20h60"/>
-      </g>
-      <g stroke="url(#g1)" stroke-width="2" fill="none" stroke-dasharray="14 186" class="animate-dash">
-        <path d="M20 80h90l30 30h80M20 320h70l40-40h120l30 30h90M380 60h-80l-30 30v60M300 380v-70l20-20h60"/>
-      </g>
-      <circle cx="200" cy="200" r="70" fill="url(#core)" opacity=".35"/>
-      <g class="animate-spin-slow" style="transform-origin: 200px 200px">
-        <ellipse cx="200" cy="200" rx="130" ry="48" fill="none" stroke="#38bdf8" stroke-opacity=".6"/>
-        <circle cx="330" cy="200" r="6" fill="#38bdf8"/>
-      </g>
-      <g class="animate-spin-slow" style="transform-origin: 200px 200px; animation-duration: 20s">
-        <ellipse cx="200" cy="200" rx="130" ry="48" fill="none" stroke="#e879f9" stroke-opacity=".55" transform="rotate(60 200 200)"/>
-      </g>
-      <g class="animate-spin-slow" style="transform-origin: 200px 200px; animation-duration: 26s; animation-direction: reverse">
-        <ellipse cx="200" cy="200" rx="130" ry="48" fill="none" stroke="#34d399" stroke-opacity=".55" transform="rotate(120 200 200)"/>
-      </g>
-      <circle cx="200" cy="200" r="16" fill="url(#g1)"/>
-    </svg>
+  <div class="relative mx-auto hidden w-full max-w-md lg:block">
+    <div aria-hidden="true" class="absolute left-1/2 top-1/2 h-60 w-60 -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-br from-cyan-400/30 to-violet-500/30 blur-2xl"></div>
+    {# The waving idle animation; a still frame for people who prefer less motion. Lazy, so phones (where this is hidden) don't download it. #}
+    <picture>
+      <source srcset="/static/mascot/idle-still.png" media="(prefers-reduced-motion: reduce)">
+      <img src="/static/mascot/idle.webp" alt="JEE Workbench assistant mascot" loading="lazy" class="relative mx-auto block h-72 w-auto drop-shadow-2xl" draggable="false">
+    </picture>
     <div class="card animate-float absolute left-0 top-6 !p-3 text-xs"><span class="num text-lg font-bold text-sky-300">+4 / −1</span><p class="text-dim">NTA marking</p></div>
     <div class="card animate-float absolute bottom-10 right-0 !p-3 text-xs" style="animation-delay: -3s"><span class="num text-lg font-bold text-fuchsia-300">+3 +2 +1</span><p class="text-dim">Advanced partial marks</p></div>
   </div>

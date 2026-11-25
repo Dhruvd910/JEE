@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Counselling centre{% endblock %}
+{% block content %}
+<p class="label">counselling centre · josaa & csab</p>
+<h1 class="h1 mt-1">From rank to <span class="grad-text">seat</span>, step by step</h1>
+<p class="mt-2 max-w-3xl text-dim">How JoSAA allots seats at the IITs, NITs, IIITs and other GFTIs, from the official
+  <a class="btn-ghost" href="{{ c.SOURCE[1] }}" target="_blank" rel="noopener">{{ c.SOURCE[0] }}</a>. Clause numbers let you check each point.</p>
+
+<div class="mt-6 flex flex-wrap gap-2">
+  <a href="/predictor" class="btn-primary">{{ icon('compass') }} Find colleges for my rank</a>
+  <a href="/choices" class="btn">{{ icon('list') }} Build my choice list</a>
+  <a href="/assistant" class="btn">{{ icon('chat') }} Ask the AI</a>
+</div>
+
+<h2 class="h2 mt-10">The process</h2>
+<ol class="mt-4 grid gap-3 md:grid-cols-2">
+  {% for title, text, ref in c.STEPS %}
+  <li class="card flex gap-4">
+    <span class="num grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-cyan-400 to-violet-500 font-bold text-slate-950">{{ loop.index }}</span>
+    <div><h3 class="font-semibold">{{ title }}</h3><p class="mt-1 text-sm text-dim">{{ text }}</p><p class="mt-2 font-mono text-[11px] text-cyan-300/80">{{ ref }}</p></div>
+  </li>
+  {% endfor %}
+</ol>
+
+<div class="mt-10 grid gap-6 lg:grid-cols-2">
+  <section class="card">
+    <h2 class="h2">Freeze, Float or Slide</h2>
+    <p class="mt-1 text-xs text-dim">Choosing one is how you accept a seat (Clause 48).</p>
+    <dl class="mt-4 space-y-3">
+      {% for name, text in c.OPTIONS %}
+      <div class="rounded-xl border border-white/10 bg-white/[.03] p-3"><dt class="font-semibold {{ ['text-emerald-300', 'text-cyan-300', 'text-violet-300'][loop.index0] }}">{{ name }}</dt><dd class="mt-1 text-sm text-dim">{{ text }}</dd></div>
+      {% endfor %}
+    </dl>
+    <p class="mt-3 text-xs text-dim">If a Float or Slide upgrade is offered and you reject it, you lose all seats (Clause 48).</p>
+  </section>
+  <section class="card">
+    <h2 class="h2">2026 schedule</h2>
+    <p class="mt-1 text-xs text-dim">From Annexure 3. Dates change every year; check JoSAA's notice for the current one.</p>
+    <ol class="relative mt-4 space-y-3 border-l border-white/10 pl-5">
+      {% for d, e in c.SCHEDULE_2026 %}
+        <li class="relative"><span class="absolute -left-[26px] top-1.5 h-2.5 w-2.5 rounded-full bg-cyan-300"></span>
+          <span class="num text-sm font-semibold">{{ d }}</span> <span class="text-sm text-dim">{{ e }}</span></li>
+      {% endfor %}
+    </ol>
+  </section>
+</div>
+
+<div class="mt-6 grid gap-6 lg:grid-cols-2">
+  <section class="card">
+    <h2 class="h2">Who can take part</h2>
+    <ul class="mt-3 space-y-2 text-sm">{% for e in c.ELIGIBILITY %}<li class="flex gap-2"><span class="text-cyan-300">{{ icon('check') }}</span><span>{{ e }}</span></li>{% endfor %}</ul>
+  </section>
+  <section class="card">
+    <h2 class="h2">Quotas</h2>
+    <dl class="mt-3 space-y-2 text-sm">{% for q, t in c.QUOTAS %}<div><dt class="font-semibold">{{ q }}</dt><dd class="text-dim">{{ t }}</dd></div>{% endfor %}</dl>
+  </section>
+</div>
+
+<div class="mt-6 grid gap-6 lg:grid-cols-2">
+  <section class="card">
+    <h2 class="h2">Withdrawing a seat</h2>
+    <ul class="mt-3 space-y-2 text-sm">{% for e in c.WITHDRAWAL %}<li class="flex gap-2"><span class="text-amber-300">•</span><span>{{ e }}</span></li>{% endfor %}</ul>
+    <p class="mt-2 font-mono text-[11px] text-cyan-300/80">Clauses 63–64</p>
+  </section>
+  <section class="card">
+    <h2 class="h2">Choice-filling tips</h2>
+    <ul class="mt-3 space-y-2 text-sm">{% for e in c.TIPS %}<li class="flex gap-2"><span class="text-emerald-300">{{ icon('zap') }}</span><span>{{ e }}</span></li>{% endfor %}</ul>
+  </section>
+</div>
+
+<section class="card mt-6">
+  <h2 class="h2">Official links</h2>
+  <div class="mt-3 flex flex-wrap gap-2">{% for n, u in c.LINKS %}<a class="btn !py-1.5" href="{{ u }}" target="_blank" rel="noopener">{{ n }} ↗</a>{% endfor %}</div>
+  <p class="mt-3 text-xs text-dim">This page summarises the rules; when anything differs, the official Business Rules and JoSAA notices decide.</p>
+</section>
+{% endblock %}
